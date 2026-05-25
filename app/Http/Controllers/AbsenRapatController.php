@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Models\AbsenRapat;
 use App\Models\DaftarHadir;
 use App\Models\Dinas;
+use App\Support\RecordOwnership;
 use Illuminate\Http\Request;
 
 use Inertia\Inertia;
@@ -15,6 +16,7 @@ class AbsenRapatController extends Controller
     {
         // Fitur Filter Berdasarkan Tanggal
         $query = AbsenRapat::query();
+        RecordOwnership::scopeOwned($query, $request->user());
 
         if ($request->has('tanggal') && $request->tanggal != '') {
             $query->whereDate('tanggal', $request->tanggal);
@@ -36,6 +38,7 @@ class AbsenRapatController extends Controller
             'pukul'         => 'required', // Boleh tambahkan date_format:H:i jika format ketat
         ]);
 
+        $validated['owner_user_id'] = $request->user()->id;
         AbsenRapat::create($validated);
         return redirect()->back()->with('success', 'Rapat berhasil dibuat.');
     }
@@ -49,6 +52,7 @@ class AbsenRapatController extends Controller
         ]);
 
         $rapat = AbsenRapat::findOrFail($id);
+        RecordOwnership::abortUnlessOwned($rapat, $request->user());
         $rapat->update($validated);
 
         return redirect()->back()->with('success', 'Rapat berhasil diupdate.');
@@ -56,9 +60,10 @@ class AbsenRapatController extends Controller
 
    
 
-    public function show($id)
+    public function show(Request $request, $id)
     {
         $rapat = AbsenRapat::findOrFail($id);
+        RecordOwnership::abortUnlessOwned($rapat, $request->user());
         $kehadiran = DaftarHadir::where('absen_rapat_id', $id)->latest()->get();
         
         // Ambil semua data dinas dari tabel
@@ -69,6 +74,16 @@ class AbsenRapatController extends Controller
             'kehadiran' => $kehadiran,
             'masterDinas' => $masterDinas // Kirim variabel ini ke Vue
         ]);
+    }
+    
+    public function print(Request $request, $id)
+    {
+        $rapat = AbsenRapat::findOrFail($id);
+        RecordOwnership::abortUnlessOwned($rapat, $request->user());
+        
+        $kehadiran = DaftarHadir::with('dinas')->where('absen_rapat_id', $id)->orderBy('created_at', 'asc')->get();
+        
+        return view('print.rapat', compact('rapat', 'kehadiran'));
     }
     
     // Metode untuk menampilkan form absen publik

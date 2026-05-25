@@ -27,6 +27,11 @@ class SecurityHeaders
             "font-src 'self' https://fonts.bunny.net; " .
             "img-src 'self' data:{$cspImages}; " .
             "connect-src 'self'{$viteDevUrl}{$viteDevWs}; " .
+            "frame-src 'none'; " .
+            "media-src 'none'; " .
+            "manifest-src 'self'; " .
+            "script-src-attr 'none'; " .
+            "style-src-attr 'unsafe-inline'; " .
             "frame-ancestors 'none'; " .
             "base-uri 'self'; " .
             "form-action 'self'; " .
@@ -36,11 +41,16 @@ class SecurityHeaders
         $response->headers->set('X-Content-Type-Options', 'nosniff');
         $response->headers->set('Referrer-Policy', 'strict-origin-when-cross-origin');
         $response->headers->set('Permissions-Policy', 'accelerometer=(), camera=(), geolocation=(), gyroscope=(), magnetometer=(), microphone=(), payment=(), usb=()');
-        $response->headers->set('X-XSS-Protection', '1; mode=block');
+        $response->headers->set('X-XSS-Protection', '0');
+        $response->headers->set('Cross-Origin-Opener-Policy', 'same-origin');
+        $response->headers->set('Cross-Origin-Resource-Policy', 'same-origin');
+        $response->headers->set('Origin-Agent-Cluster', '?1');
+        $response->headers->set('X-Permitted-Cross-Domain-Policies', 'none');
         $response->headers->set('Content-Security-Policy', $csp);
 
         if (app()->environment('production')) {
             $response->headers->set('Strict-Transport-Security', 'max-age=31536000; includeSubDomains; preload');
+            $response->headers->set('Content-Security-Policy', $csp.' upgrade-insecure-requests;');
         }
 
         return $response;

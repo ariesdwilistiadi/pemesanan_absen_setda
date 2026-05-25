@@ -4,15 +4,18 @@ namespace App\Http\Controllers;
 
 use App\Models\Anggota;
 use App\Models\DanaDkk;
+use App\Support\RecordOwnership;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
 use Inertia\Inertia;
 
 class DanaDkkController extends Controller
 {
-    public function index()
+    public function index(Request $request)
     {
-        $danaDkks = DanaDkk::with('anggota')->latest('tanggal_create')->get();
+        $danaDkksQuery = DanaDkk::with('anggota')->latest('tanggal_create');
+        RecordOwnership::scopeOwned($danaDkksQuery, $request->user());
+        $danaDkks = $danaDkksQuery->get();
         $anggotas = Anggota::select(['id_anggota', 'no_anggota', 'nama'])->orderBy('nama')->get();
 
         return Inertia::render('DanaDkk/Index', [
@@ -38,6 +41,7 @@ class DanaDkkController extends Controller
         }
 
         $validated['tanggal_create'] = now();
+        $validated['owner_user_id'] = $request->user()->id;
         DanaDkk::create($validated);
 
         return redirect()->back()->with('success', 'Data Dana DKK berhasil disimpan.');

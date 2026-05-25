@@ -48,9 +48,12 @@ class DatabaseSeeder extends Seeder
             'view_users', 'create_users', 'edit_users', 'delete_users', 'manage_user_permissions',
             'view_menus', 'create_menus', 'edit_menus', 'delete_menus', 'reorder_menus',
             'view_anggotas', 'create_anggotas', 'edit_anggotas', 'delete_anggotas',
+            'view_produks', 'create_produks', 'edit_produks', 'delete_produks',
+            'view_kasir', 'create_kasir', 'edit_kasir', 'delete_kasir',
             'view_dana_dkks', 'create_dana_dkks', 
             'view_pinjaman', 'create_pinjaman', 
-            'view_pinjaman_bayar', 'create_pinjaman_bayar'
+            'view_pinjaman_bayar', 'create_pinjaman_bayar',
+            'view_rapat', 'create_rapat', 'edit_rapat'
         ]);
 
         // 5. Buat Akun Utama / Super Admin

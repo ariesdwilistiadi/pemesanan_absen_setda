@@ -7,9 +7,11 @@ use App\Models\Produk;
 use App\Models\DaftarHadir;
 use App\Models\TransaksiHeader;
 use App\Models\TransaksiDetail;
+use App\Support\RecordOwnership;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
 use Illuminate\Support\Str;
+use Illuminate\Validation\Rule;
 
 class KasirController extends Controller
 {
@@ -17,7 +19,9 @@ class KasirController extends Controller
     public function index(Request $request)
     {
         $produks = Produk::all();
-        $transaksis = TransaksiHeader::with('details.produk')->latest()->get();
+        $transaksisQuery = TransaksiHeader::with('details.produk')->latest();
+        RecordOwnership::scopeOwned($transaksisQuery, $request->user());
+        $transaksis = $transaksisQuery->get();
 
         return Inertia::render('Kasir/Index', [
             'produks' => $produks,
@@ -55,7 +59,7 @@ class KasirController extends Controller
     public function store(Request $request)
     {
         $validated = $request->validate([
-            'id_absen_rapats' => 'nullable|exists:absen_rapats,id',
+            'id_absen_rapats' => ['nullable', Rule::exists(DaftarHadir::class, 'id')],
             'nip' => 'nullable|string',
             'nama' => 'required|string',
             'nomor_meja' => 'nullable|string',
@@ -100,6 +104,8 @@ class KasirController extends Controller
             'metode_pembayaran' => $validated['metode_pembayaran'],
             'jumlah_bayar' => $validated['jumlah_bayar'],
             'kembalian' => $kembalian
+        ] + [
+            'owner_user_id' => $request->user()->id,
         ]);
 
         foreach ($validated['cart'] as $item) {
@@ -119,12 +125,23 @@ class KasirController extends Controller
             }
         }
 
-        return redirect()->back()->with('success', 'Transaksi berhasil disimpan dengan No: ' . $noTransaksi);
+        return redirect()->back()
+            ->with('success', 'Transaksi berhasil disimpan dengan No: ' . $noTransaksi)
+            ->with('print_id', $header->id);
+    }
+
+    public function print($id)
+    {
+        $transaksi = TransaksiHeader::with('details.produk')->findOrFail($id);
+        RecordOwnership::abortUnlessOwned($transaksi, request()->user());
+        
+        return view('print.kasir', compact('transaksi'));
     }
 
     public function destroy($id)
     {
         $transaksi = TransaksiHeader::findOrFail($id);
+        RecordOwnership::abortUnlessOwned($transaksi, request()->user());
         
         // Kembalikan stok
         foreach ($transaksi->details as $detail) {
@@ -140,10 +157,12 @@ class KasirController extends Controller
         return redirect()->back()->with('success', 'Transaksi berhasil dihapus');
     }
 
-    public function pesanan()
+    public function pesanan(Request $request)
     {
         // Get all transactions sorted by latest first
-        $transaksis = TransaksiHeader::with('details.produk')->latest()->get();
+        $transaksisQuery = TransaksiHeader::with('details.produk')->latest();
+        RecordOwnership::scopeOwned($transaksisQuery, $request->user());
+        $transaksis = $transaksisQuery->get();
 
         return Inertia::render('Kasir/Pesanan', [
             'transaksis' => $transaksis
@@ -157,6 +176,7 @@ class KasirController extends Controller
         ]);
 
         $transaksi = TransaksiHeader::findOrFail($id);
+        RecordOwnership::abortUnlessOwned($transaksi, $request->user());
         $transaksi->status = $request->status;
         
         // If status becomes batal, return stock
@@ -174,4 +194,83 @@ class KasirController extends Controller
 
         return redirect()->back()->with('success', 'Status pesanan berhasil diperbarui');
     }
+
+    public function laporan(Request $request)
+    {
+        $query = TransaksiHeader::with('details.produk')->where('status', 'selesai')->latest();
+        RecordOwnership::scopeOwned($query, $request->user());
+
+        // Simple filtering by date range
+        if ($request->has('start_date') && $request->has('end_date')) {
+            $query->whereBetween('tanggal_transaksi', [
+                $request->start_date . ' 00:00:00',
+                $request->end_date . ' 23:59:59'
+            ]);
+        } else {
+            // Default to today
+            $query->whereDate('tanggal_transaksi', today());
+        }
+
+        $transaksis = $query->get();
+
+        $totalPendapatan = $transaksis->sum('total_harga');
+
+        return Inertia::render('Kasir/Laporan', [
+            'transaksis' => $transaksis,
+            'totalPendapatan' => $totalPendapatan,
+            'filters' => $request->only(['start_date', 'end_date'])
+        ]);
+    }
+
+    public function laporanKeuntungan(Request $request)
+    {
+        $query = TransaksiHeader::with('details.produk')->where('status', 'selesai')->latest();
+        RecordOwnership::scopeOwned($query, $request->user());
+
+        // Simple filtering by date range
+        if ($request->has('start_date') && $request->has('end_date')) {
+            $query->whereBetween('tanggal_transaksi', [
+                $request->start_date . ' 00:00:00',
+                $request->end_date . ' 23:59:59'
+            ]);
+        } else {
+            // Default to today
+            $query->whereDate('tanggal_transaksi', today());
+        }
+
+        $transaksis = $query->get();
+
+        $totalPendapatan = 0;
+        $totalModal = 0;
+
+        $transaksis->transform(function ($trx) use (&$totalPendapatan, &$totalModal) {
+            $modal = 0;
+            $pendapatan = $trx->total_harga;
+            
+            foreach ($trx->details as $detail) {
+                // If product is deleted, we might not know the exact modal, assume 0 or handle it
+                $hargaBeli = $detail->produk ? $detail->produk->harga_beli : 0;
+                $modal += $hargaBeli * $detail->jumlah;
+            }
+
+            $trx->modal = $modal;
+            $trx->keuntungan = $pendapatan - $modal;
+            
+            $totalPendapatan += $pendapatan;
+            $totalModal += $modal;
+
+            return $trx;
+        });
+
+        $totalKeuntungan = $totalPendapatan - $totalModal;
+
+        return Inertia::render('Kasir/LaporanKeuntungan', [
+            'transaksis' => $transaksis,
+            'totalPendapatan' => $totalPendapatan,
+            'totalModal' => $totalModal,
+            'totalKeuntungan' => $totalKeuntungan,
+            'filters' => $request->only(['start_date', 'end_date'])
+        ]);
+    }
 }
+ 

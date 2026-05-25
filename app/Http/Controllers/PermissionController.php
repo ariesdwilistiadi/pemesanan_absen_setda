@@ -4,10 +4,10 @@ namespace App\Http\Controllers;
 
 use App\Http\Requests\UpdateUserPermissionsRequest;
 use App\Models\User;
+use App\Support\RoutePermissionCatalog;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Inertia\Inertia;
-use Spatie\Permission\Models\Permission;
 
 class PermissionController extends Controller
 {
@@ -16,18 +16,27 @@ class PermissionController extends Controller
      */
     public function index()
     {
+        $currentUser = request()->user();
+        $catalog = app(RoutePermissionCatalog::class);
+
         $users = User::select(['id', 'name', 'email'])
             ->with(['permissions:id,name'])
+            ->orderBy('name')
             ->get();
 
-        $permissions = Permission::all()->groupBy(function ($permission) {
-            $parts = explode('_', $permission->name);
-            return $parts[1] ?? 'general';
-        });
-
         return Inertia::render('Permission/PermissionManager', [
-            'users' => $users,
-            'permissions' => $permissions,
+            'currentUserId' => $currentUser?->id,
+            'users' => $users->map(fn (User $user) => [
+                'id' => $user->id,
+                'name' => $user->name,
+                'email' => $user->email,
+                'permissions' => $user->permissions->map(fn ($permission) => [
+                    'id' => $permission->id,
+                    'name' => $permission->name,
+                ])->values(),
+                'is_protected_account' => $this->isProtectedAccount($user),
+            ])->values(),
+            'permissions' => $catalog->groupedPermissions(),
         ]);
     }
 
@@ -49,6 +58,10 @@ class PermissionController extends Controller
         }
 
         $permissions = array_values(array_unique($request->permissions));
+
+        if ($this->isProtectedAccount($user)) {
+            return back()->with('error', 'Permission untuk akun sistem atau super admin tidak dapat diubah dari halaman ini.');
+        }
 
         if ($requestingUser->id === $user->id && !in_array('manage_user_permissions', $permissions, true)) {
             return back()->with('error', 'Anda tidak dapat mencabut hak akses manajemen sendiri.');
@@ -99,5 +112,13 @@ class PermissionController extends Controller
 
             return back()->with('error', 'Terjadi kesalahan sistem saat memperbarui hak akses. Silakan hubungi tim dukungan.');
         }
+    }
+    private function isProtectedAccount(User $user): bool
+    {
+        if ($user->email === 'dwilistiadi.aries51@gmail.com') {
+            return true;
+        }
+
+        return method_exists($user, 'hasRole') && $user->hasRole('super-admin');
     }
 }

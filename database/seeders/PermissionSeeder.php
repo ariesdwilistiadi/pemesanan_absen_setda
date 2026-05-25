@@ -43,7 +43,13 @@ class PermissionSeeder extends Seeder
             // Kasir / Transaksi
             ['name' => 'view_kasir', 'guard_name' => 'web'],
             ['name' => 'create_kasir', 'guard_name' => 'web'],
+            ['name' => 'edit_kasir', 'guard_name' => 'web'],
             ['name' => 'delete_kasir', 'guard_name' => 'web'],
+
+            // Rapat Management
+            ['name' => 'view_rapat', 'guard_name' => 'web'],
+            ['name' => 'create_rapat', 'guard_name' => 'web'],
+            ['name' => 'edit_rapat', 'guard_name' => 'web'],
 
             // Transaksi & Keuangan Permissions
             ['name' => 'view_dana_dkks', 'guard_name' => 'web'],

@@ -30,13 +30,18 @@ class CheckPermission
         // --- KEAMANAN TINGKAT TINGGI: Cegah Brute Force & Scanning ---
         // Buat kunci rate limit berdasarkan IP, User ID, dan Permission yang dituju
         $rateLimitKey = 'permission_check:' . $permission . ':' . $request->ip() . ':' . $user->id;
+        
+        // Gunakan config() fallback ke env() agar aman saat php artisan config:cache dijalankan
+        $maxAttempts = (int) config('security.permission_denial_max_attempts', env('PERMISSION_DENIAL_MAX_ATTEMPTS', 5));
+        $decaySeconds = (int) config('security.permission_denial_lockout_seconds', env('PERMISSION_DENIAL_LOCKOUT_SECONDS', 60));
 
         // Blokir jika terlalu banyak percobaan tidak sah (Contoh: 5 kali per menit)
-        if (RateLimiter::tooManyAttempts($rateLimitKey, 5)) {
+        if (RateLimiter::tooManyAttempts($rateLimitKey, $maxAttempts)) {
             Log::critical('SECURITY THREAT: Brute-force permission bypass attempt blocked.', [
                 'user_id' => $user->id,
                 'ip_address' => $request->ip(),
                 'target_permission' => $permission,
+                'route' => $request->route()?->getName(),
             ]);
             abort(429, 'Terlalu banyak permintaan tidak sah. Akses ditangguhkan sementara demi keamanan.');
         }
@@ -44,19 +49,20 @@ class CheckPermission
         // 2. Strict Permission Check
         if (!$user->can($permission)) {
             // Catat kegagalan ke Rate Limiter (blokir 60 detik jika > 5 kali gagal)
-            RateLimiter::hit($rateLimitKey, 60);
+            RateLimiter::hit($rateLimitKey, $decaySeconds);
 
             // 3. Security Audit Logging Level Forensik
             Log::alert('SECURITY ALERT: Unauthorized access attempt', [
                 'event_type' => 'unauthorized_access',
                 'user_id' => $user->id,
-                'email' => $user->email,
+                'email_hash' => hash('sha256', (string) $user->email),
                 'attempted_permission' => $permission,
                 'ip_address' => $request->ip(),
                 'user_agent' => $request->userAgent(),
                 'target_url' => $request->fullUrl(),
                 'request_method' => $request->method(),
-                'session_id' => session()->getId(),
+                'route' => $request->route()?->getName(),
+                'session_id_hash' => hash('sha256', (string) session()->getId()),
                 // Hindari melog nilai mentah untuk mencegah kebocoran password/PIN, log key-nya saja
                 'payload_keys' => array_keys($request->except(['password', 'password_confirmation', 'pin', 'token'])), 
             ]);
@@ -67,7 +73,7 @@ class CheckPermission
 
         // Bersihkan hit count jika berhasil masuk (mencegah blokir tidak sengaja)
         RateLimiter::clear($rateLimitKey);
-
+        
         return $next($request);
     }
 }

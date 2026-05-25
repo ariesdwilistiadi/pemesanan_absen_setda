@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\Produk;
+use App\Support\RecordOwnership;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
 use Inertia\Inertia;
@@ -12,9 +13,11 @@ class ProdukController extends Controller
     /**
      * Display a listing of the resource.
      */
-    public function index()
+    public function index(Request $request)
     {
-        $produks = Produk::latest()->get();
+        $produksQuery = Produk::latest();
+        RecordOwnership::scopeOwned($produksQuery, $request->user());
+        $produks = $produksQuery->get();
 
         return Inertia::render('Produk/Index', [
             'produks' => $produks,
@@ -43,6 +46,7 @@ class ProdukController extends Controller
             $validated['gambar'] = $path;
         }
 
+        $validated['owner_user_id'] = $request->user()->id;
         Produk::create($validated);
 
         return redirect()->back()->with('success', 'Produk berhasil ditambahkan.');
@@ -53,6 +57,7 @@ class ProdukController extends Controller
      */
     public function update(Request $request, Produk $produk)
     {
+        RecordOwnership::abortUnlessOwned($produk, $request->user());
         $validated = $request->validate([
             'kode_barang' => 'required|string|max:255|unique:produks,kode_barang,' . $produk->id,
             'nama_barang' => 'required|string|max:255',
@@ -87,6 +92,7 @@ class ProdukController extends Controller
      */
     public function destroy(Produk $produk)
     {
+        RecordOwnership::abortUnlessOwned($produk, request()->user());
         if ($produk->gambar && Storage::disk('public')->exists($produk->gambar)) {
             Storage::disk('public')->delete($produk->gambar);
         }

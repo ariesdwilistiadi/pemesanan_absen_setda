@@ -16,6 +16,7 @@ class TransaksiHeader extends Model
         'total_item',
         'total_harga',
         'keterangan',
+        'owner_user_id',
         'status',
         'metode_pembayaran',
         'jumlah_bayar',

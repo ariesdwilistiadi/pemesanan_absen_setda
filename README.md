@@ -1,21 +1,67 @@
 # absen_sekda
 
-Laravel is a web application framework with expressive, elegant syntax. We believe development must be an enjoyable and creative experience to be truly fulfilling. Laravel takes the pain out of development by easing common tasks used in many web projects.
+Project ini sekarang mendukung auth API berbasis Sanctum dengan `access token` dan `refresh token`.
 
-## About Laravel
+## Endpoint Auth API
 
-Laravel is a web application framework with expressive, elegant syntax. We believe development must be an enjoyable and creative experience to be truly fulfilling. Laravel takes the pain out of development by easing common tasks used in many web projects, such as:
+- `POST /api/auth/login`
+- `POST /api/auth/refresh`
+- `GET /api/auth/me`
+- `POST /api/auth/logout`
 
-- [Simple, fast routing engine](https://laravel.com/docs/routing).
-- [Powerful dependency injection container](https://laravel.com/docs/container).
-- Multiple back-ends for [session](https://laravel.com/docs/session) and [cache](https://laravel.com/docs/cache) storage.
-- Expressive, intuitive [database ORM](https://laravel.com/docs/eloquent).
-- Database agnostic [schema migrations](https://laravel.com/docs/migrations).
-- [Robust background job processing](https://laravel.com/docs/queues).
-- [Real-time event broadcasting](https://laravel.com/docs/broadcasting).
+Contoh request login:
 
-Laravel is accessible, powerful, and provides tools required for large, robust applications.
+```json
+{
+  "email": "user@example.com",
+  "password": "password",
+  "device_name": "web-app"
+}
+```
 
-## License
+Response dari `login` dan `refresh`:
 
-The Laravel framework is open-sourced software licensed under the [MIT license](https://opensource.org/licenses/MIT).
+```json
+{
+  "token_type": "Bearer",
+  "access_token": "...",
+  "access_token_expires_at": "2026-05-25T12:34:56+00:00",
+  "refresh_token": "...",
+  "refresh_token_expires_at": "2026-06-01T12:34:56+00:00",
+  "user": {
+    "id": 1,
+    "name": "Demo User",
+    "email": "user@example.com"
+  }
+}
+```
+
+## Konfigurasi Expiry
+
+- `SANCTUM_ACCESS_TOKEN_TTL=15`
+- `SANCTUM_REFRESH_TOKEN_TTL_DAYS=7`
+
+## Hardening Login & Session
+
+- login memakai verifikasi manusia sederhana berbasis perhitungan
+- ada honeypot field tersembunyi untuk bot dasar
+- submit login yang terlalu cepat ditolak
+- rate limit login dipisah per email+IP dan per IP
+- sesi idle diputus oleh server setelah `SESSION_IDLE_TIMEOUT`
+- halaman sensitif diberi header `no-store`
+
+Konfigurasi tambahan:
+
+- `SESSION_IDLE_TIMEOUT=15`
+- `LOGIN_MIN_FORM_FILL_SECONDS=2`
+- `PERMISSION_DENIAL_MAX_ATTEMPTS=5`
+- `PERMISSION_DENIAL_LOCKOUT_SECONDS=60`
+
+## Frontend
+
+`resources/js/bootstrap.js` sudah menangani:
+
+- bearer token otomatis di `axios`
+- refresh token otomatis saat response `401`
+- retry request sekali setelah refresh berhasil
+- hapus token lokal jika refresh gagal

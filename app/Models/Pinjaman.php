@@ -25,6 +25,7 @@ class Pinjaman extends Model
         'nama', 
         'tgl_pinjaman', 
         'tanggal_create', 
+        'owner_user_id',
         'username', 
         'id_jenis_pinjaman', 
         'kategori'
@@ -47,7 +48,7 @@ class Pinjaman extends Model
      */
     public function anggota()
     {
-        return $this->belongsTo(Anggota::class, 'id_anggota', 'id_anggota');
+        return $this->belongsTo(Anggota::class, 'id_anggota', 'id');
     }
 
     /**

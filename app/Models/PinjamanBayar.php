@@ -21,13 +21,14 @@ class PinjamanBayar extends Model
         'bunga',
         'denda',
         'tanggal_bayar',
+        'owner_user_id',
         'username',
         'tanggal_create',
     ];
 
     public function anggota()
     {
-        return $this->belongsTo(Anggota::class, 'id_anggota');
+        return $this->belongsTo(Anggota::class, 'id_anggota', 'id');
     }
 
     public function pinjaman()

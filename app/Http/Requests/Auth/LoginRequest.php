@@ -2,6 +2,8 @@
 
 namespace App\Http\Requests\Auth;
 
+use App\Models\User;
+use App\Support\LoginChallenge;
 use Illuminate\Auth\Events\Lockout;
 use Illuminate\Contracts\Validation\ValidationRule;
 use Illuminate\Foundation\Http\FormRequest;
@@ -29,9 +31,45 @@ class LoginRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'email' => ['required', 'string', 'email'],
-            'password' => ['required', 'string'],
+            'email' => ['required', 'string', 'email:filter', 'max:255'],
+            'password' => ['required', 'string', 'max:4096'],
+            'remember' => ['nullable', 'boolean'],
+            'website' => [
+                'nullable',
+                'string',
+                function (string $attribute, mixed $value, \Closure $fail) {
+                    if (filled($value)) {
+                        LoginChallenge::rotate($this->session());
+                        $fail('Verifikasi keamanan gagal.');
+                    }
+                },
+            ],
+            'challenge_answer' => [
+                'required',
+                'integer',
+                function (string $attribute, mixed $value, \Closure $fail) {
+                    if (! LoginChallenge::isMature($this->session())) {
+                        LoginChallenge::rotate($this->session());
+                        $fail('Verifikasi keamanan gagal. Coba lagi secara perlahan.');
+
+                        return;
+                    }
+
+                    if ((int) $value !== (int) LoginChallenge::answer($this->session())) {
+                        LoginChallenge::rotate($this->session());
+                        $fail('Jawaban verifikasi manusia tidak sesuai.');
+                    }
+                },
+            ],
         ];
+    }
+
+    protected function prepareForValidation(): void
+    {
+        $this->merge([
+            'email' => Str::lower(trim((string) $this->input('email'))),
+            'remember' => $this->boolean('remember'),
+        ]);
     }
 
     /**
@@ -39,17 +77,21 @@ class LoginRequest extends FormRequest
      *
      * @throws ValidationException
      */
-    public function authenticate(): void
+    public function authenticate(): User
     {
         $this->ensureIsNotRateLimited();
 
         if (! Auth::attempt($this->only('email', 'password'), $this->boolean('remember'))) {
-            RateLimiter::hit($this->throttleKey());
+            RateLimiter::hit($this->throttleKey(), $this->identityDecaySeconds());
+            RateLimiter::hit($this->ipThrottleKey(), $this->ipDecaySeconds());
+            LoginChallenge::rotate($this->session());
 
             Log::warning('AUTHENTICATION FAILURE', [
-                'email' => $this->email,
+                'email_hash' => hash('sha256', (string) $this->email),
                 'ip_address' => $this->ip(),
                 'throttle_key' => $this->throttleKey(),
+                'ip_throttle_key' => $this->ipThrottleKey(),
+                'user_agent' => $this->userAgent(),
             ]);
 
             throw ValidationException::withMessages([
@@ -58,6 +100,13 @@ class LoginRequest extends FormRequest
         }
 
         RateLimiter::clear($this->throttleKey());
+        RateLimiter::clear($this->ipThrottleKey());
+
+        /** @var User $user */
+        $user = $this->user();
+        LoginChallenge::clear($this->session());
+
+        return $user;
     }
 
     /**
@@ -67,13 +116,26 @@ class LoginRequest extends FormRequest
      */
     public function ensureIsNotRateLimited(): void
     {
-        if (! RateLimiter::tooManyAttempts($this->throttleKey(), 5)) {
+        $tooManyIdentityAttempts = RateLimiter::tooManyAttempts(
+            $this->throttleKey(),
+            (int) env('LOGIN_MAX_ATTEMPTS_PER_IDENTITY', 5)
+        );
+
+        $tooManyIpAttempts = RateLimiter::tooManyAttempts(
+            $this->ipThrottleKey(),
+            (int) env('LOGIN_MAX_ATTEMPTS_PER_IP', 20)
+        );
+
+        if (! $tooManyIdentityAttempts && ! $tooManyIpAttempts) {
             return;
         }
 
         event(new Lockout($this));
 
-        $seconds = RateLimiter::availableIn($this->throttleKey());
+        $seconds = max(
+            RateLimiter::availableIn($this->throttleKey()),
+            RateLimiter::availableIn($this->ipThrottleKey())
+        );
 
         throw ValidationException::withMessages([
             'email' => trans('auth.throttle', [
@@ -89,5 +151,20 @@ class LoginRequest extends FormRequest
     public function throttleKey(): string
     {
         return Str::transliterate(Str::lower($this->string('email')).'|'.$this->ip());
+    }
+
+    public function ipThrottleKey(): string
+    {
+        return 'login-ip:'.$this->ip();
+    }
+
+    private function identityDecaySeconds(): int
+    {
+        return (int) env('LOGIN_LOCKOUT_SECONDS', 300);
+    }
+
+    private function ipDecaySeconds(): int
+    {
+        return (int) env('LOGIN_IP_LOCKOUT_SECONDS', 600);
     }
 }

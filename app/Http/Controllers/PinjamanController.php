@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Models\Anggota;
 use App\Models\Pinjaman;
+use App\Support\RecordOwnership;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Str;
@@ -22,9 +23,10 @@ class PinjamanController extends Controller
          * Dengan memuat 'angsuran', data history akan langsung terbawa ke frontend
          * sehingga saat baris diklik, data sudah siap ditampilkan tanpa reload.
          */
-        $pinjaman = Pinjaman::with(['anggota', 'angsuran'])
-            ->latest('tanggal_create')
-            ->get();
+        $pinjamanQuery = Pinjaman::with(['anggota', 'angsuran'])
+            ->latest('tanggal_create');
+        RecordOwnership::scopeOwned($pinjamanQuery, Auth::user(), 'username');
+        $pinjaman = $pinjamanQuery->get();
         
         // Memuat daftar anggota untuk dropdown form
         $anggotas = Anggota::select(['id_anggota', 'no_anggota', 'nama'])
@@ -62,6 +64,7 @@ class PinjamanController extends Controller
         // Ambil petugas dan batasi 25 karakter sesuai database
         $petugas = Auth::user()->username ?? Auth::user()->name ?? 'admin';
         $validated['username'] = Str::limit($petugas, 25, '');
+        $validated['owner_user_id'] = Auth::id();
 
         Pinjaman::create($validated);
 

@@ -166,6 +166,19 @@ const increaseQty = (index) => {
     }
 };
 
+// Filtered Products
+const searchProduk = ref('');
+const filteredProduks = computed(() => {
+    if (!searchProduk.value) {
+        return props.produks;
+    }
+    const searchTerm = searchProduk.value.toLowerCase();
+    return props.produks.filter(produk => 
+        (produk.nama_barang && String(produk.nama_barang).toLowerCase().includes(searchTerm)) || 
+        (produk.kode_barang && String(produk.kode_barang).toLowerCase().includes(searchTerm))
+    );
+});
+
 // Calculate total
 const cartTotal = computed(() => {
     return cart.value.reduce((total, item) => total + (item.harga_jual * item.jumlah), 0);
@@ -212,13 +225,19 @@ const processCheckout = () => {
             cart: cart.value
         }, {
             preserveScroll: true,
-            onSuccess: () => {
-                // Tampilkan alert sukses dan kembalian
-                let successMsg = 'Transaksi Berhasil!';
-                if (metodePembayaran.value === 'cash') {
-                    successMsg += `\nKembalian: ${formatRupiah(kembalian.value)}`;
+            onSuccess: (page) => {
+                // Check for print_id from flash and open print window
+                const printId = page.props.flash?.print_id;
+                if (printId) {
+                    window.open(route('kasir.print', printId), '_blank', 'width=400,height=600');
+                } else {
+                    // Tampilkan alert sukses dan kembalian jika tidak print
+                    let successMsg = 'Transaksi Berhasil!';
+                    if (metodePembayaran.value === 'cash') {
+                        successMsg += `\nKembalian: ${formatRupiah(kembalian.value)}`;
+                    }
+                    alert(successMsg);
                 }
-                alert(successMsg);
 
                 // Reset form
                 cart.value = [];
@@ -323,15 +342,41 @@ const deleteTransaksi = (id) => {
                         </div>
 
                        <div class="bg-white rounded-3xl shadow-sm border border-slate-100 p-8">
-						<div class="flex items-center justify-between mb-8">
-							<h3 class="text-2xl font-black text-slate-900">Katalog Produk</h3>
-							<span class="text-sm text-slate-400 font-medium">{{ produks.length }} Produk Tersedia</span>
+						<div class="flex flex-col md:flex-row items-start md:items-center justify-between mb-8 gap-4">
+							<div>
+                                <h3 class="text-2xl font-black text-slate-900">Katalog Produk</h3>
+							    <span class="text-sm text-slate-400 font-medium">{{ filteredProduks.length }} Produk Tersedia</span>
+                            </div>
+                            <div class="w-full md:w-64">
+                                <div class="relative">
+                                    <input 
+                                        v-model="searchProduk" 
+                                        type="text" 
+                                        placeholder="Cari produk..." 
+                                        class="w-full rounded-xl border-slate-200 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 pl-10 text-sm"
+                                    >
+                                    <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                                        <svg class="h-5 w-5 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                                        </svg>
+                                    </div>
+                                    <button 
+                                        v-if="searchProduk" 
+                                        @click="searchProduk = ''"
+                                        class="absolute inset-y-0 right-0 pr-3 flex items-center text-slate-400 hover:text-slate-600"
+                                    >
+                                        <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+                                        </svg>
+                                    </button>
+                                </div>
+                            </div>
 						</div>
 						
 					
 						<div class="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-4 xl:grid-cols-4 gap-6">
                             <div 
-                                v-for="produk in produks"
+                                v-for="produk in filteredProduks"
                                 :key="produk.id"
                                 @click="addToCart(produk)"
                                 class="group bg-white rounded-2xl overflow-hidden border border-slate-100 hover:border-indigo-500 hover:shadow-xl hover:-translate-y-1 transition-all duration-300 cursor-pointer flex flex-col relative"

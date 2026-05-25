@@ -27,6 +27,7 @@ class ProfileTest extends TestCase
 
         $response = $this
             ->actingAs($user)
+            ->withHeaders($this->statefulHeaders())
             ->patch('/profile', [
                 'name' => 'Test User',
                 'email' => 'test@example.com',
@@ -49,6 +50,7 @@ class ProfileTest extends TestCase
 
         $response = $this
             ->actingAs($user)
+            ->withHeaders($this->statefulHeaders())
             ->patch('/profile', [
                 'name' => 'Test User',
                 'email' => $user->email,
@@ -67,6 +69,7 @@ class ProfileTest extends TestCase
 
         $response = $this
             ->actingAs($user)
+            ->withHeaders($this->statefulHeaders())
             ->delete('/profile', [
                 'password' => 'password',
             ]);
@@ -86,6 +89,7 @@ class ProfileTest extends TestCase
         $response = $this
             ->actingAs($user)
             ->from('/profile')
+            ->withHeaders($this->statefulHeaders())
             ->delete('/profile', [
                 'password' => 'wrong-password',
             ]);
@@ -95,5 +99,21 @@ class ProfileTest extends TestCase
             ->assertRedirect('/profile');
 
         $this->assertNotNull($user->fresh());
+    }
+
+    public function test_idle_session_is_expired_by_server_timeout(): void
+    {
+        $user = User::factory()->create();
+
+        $response = $this
+            ->actingAs($user)
+            ->withSession([
+                'last_activity' => now()->subMinutes(((int) env('SESSION_IDLE_TIMEOUT', 120)) + 1)->timestamp,
+            ])
+            ->get('/profile');
+
+        $response->assertRedirect(route('login'));
+        $response->assertSessionHas('status');
+        $this->assertGuest();
     }
 }

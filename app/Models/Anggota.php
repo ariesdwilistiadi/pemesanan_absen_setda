@@ -24,12 +24,23 @@ class Anggota extends Model
         'id_anggota', // Masukkan ke fillable untuk keamanan
         'no_anggota',
         'nama',
+        'no_identitas',
+        'tempat_lahir',
+        'tgl_lahir',
+        'alamat',
+        'jenis_kelamin',
+        'no_telp',
+        'agama_id',
+        'pekerjaan',
+        'simpanan_pokok',
+        'simpanan_wajib',
         'pangkat',
         'nrp_nip',
         'kesatuan',
         'kategori',
         'status',
         'tgl_masuk',
+        'owner_user_id',
     ];
 
     /**
@@ -37,7 +48,7 @@ class Anggota extends Model
      */
     public function danaDkk()
     {
-        return $this->hasMany(DanaDkk::class, 'id_anggota', 'id_anggota');
+        return $this->hasMany(DanaDkk::class, 'id_anggota', 'id');
     }
 
     /**
@@ -45,7 +56,7 @@ class Anggota extends Model
      */
     public function pinjaman()
     {
-        return $this->hasMany(Pinjaman::class, 'id_anggota', 'id_anggota');
+        return $this->hasMany(Pinjaman::class, 'id_anggota', 'id');
     }
 
     /**
@@ -53,12 +64,12 @@ class Anggota extends Model
      */
     public function angsuran()
     {
-        return $this->hasMany(PinjamanBayar::class, 'id_anggota', 'id_anggota');
+        return $this->hasMany(PinjamanBayar::class, 'id_anggota', 'id');
     }
 	
 	public function agama()
     {
         // Parameter: (ModelTarget, foreign_key_di_tabel_anggota, owner_key_di_tabel_agama)
-        return $this->belongsTo(Agama::class, 'id_agama', 'id_agama');
+        return $this->belongsTo(Agama::class, 'agama_id', 'id');
     }
 }

@@ -56,6 +56,10 @@ class AppServiceProvider extends ServiceProvider
             $user->can('manage_user_permissions')
         );
 
+        Gate::define('access-all-records', fn ($user) =>
+            $user->can('manage_user_permissions')
+        );
+
         if ($this->app->environment('production')) {
             config(['session.secure' => true]);
             config(['session.same_site' => 'strict']);

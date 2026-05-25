@@ -23,6 +23,7 @@ class DanaDkk extends Model
         'tgl_sakit',
         'tanggal_create',
         'lama_sakit',
+        'owner_user_id',
     ];
 
     protected $appends = [

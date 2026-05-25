@@ -1,16 +1,16 @@
 <?php
 
-use App\Http\Controllers\ProfileController;
-use App\Http\Controllers\MenuController;
-use App\Http\Controllers\UserController;
-use App\Http\Controllers\PermissionController;
+use App\Http\Controllers\AbsenRapatController;
 use App\Http\Controllers\AnggotaController;
 use App\Http\Controllers\DanaDkkController;
-use App\Http\Controllers\PinjamanController;
-use App\Http\Controllers\PinjamanBayarController;
-use App\Http\Controllers\AbsenRapatController;
-use App\Http\Controllers\ProdukController;
 use App\Http\Controllers\KasirController;
+use App\Http\Controllers\MenuController;
+use App\Http\Controllers\PermissionController;
+use App\Http\Controllers\PinjamanBayarController;
+use App\Http\Controllers\PinjamanController;
+use App\Http\Controllers\ProdukController;
+use App\Http\Controllers\ProfileController;
+use App\Http\Controllers\UserController;
 use Illuminate\Foundation\Application;
 use Illuminate\Support\Facades\Route;
 use Inertia\Inertia;
@@ -29,18 +29,20 @@ Route::get('/', function () {
         'phpVersion' => PHP_VERSION,
     ]);
 });
- Route::controller(KasirController::class)->group(function () {
-        Route::get('/kasir', 'index')->middleware('permission:view_kasir')->name('kasir.index');
-        Route::get('/kasir/cari-peserta', 'cariPeserta')->middleware('permission:view_kasir')->name('kasir.cari-peserta');
-        Route::post('/kasir', 'store')->middleware(['permission:create_kasir', 'throttle:10,1'])->name('kasir.store');
-        Route::delete('/kasir/{id}', 'destroy')->middleware(['permission:delete_kasir', 'throttle:10,1'])->name('kasir.destroy');
-        
-        // Daftar Pesanan
-        Route::get('/kasir/pesanan', 'pesanan')->middleware('permission:view_kasir')->name('kasir.pesanan');
-        Route::patch('/kasir/pesanan/{id}/status', 'updateStatus')->middleware('permission:edit_kasir')->name('kasir.update-status');
-   
-   });
-// Rute Publik untuk Absensi (Scan QR Code)
+
+Route::controller(KasirController::class)->group(function () {
+    Route::get('/kasir', 'index')->middleware('permission:view_kasir')->name('kasir.index');
+    Route::get('/kasir/cari-peserta', 'cariPeserta')->middleware('permission:view_kasir')->name('kasir.cari-peserta');
+    Route::post('/kasir', 'store')->middleware(['permission:create_kasir', 'throttle:10,1'])->name('kasir.store');
+    Route::delete('/kasir/{id}', 'destroy')->middleware(['permission:delete_kasir', 'throttle:10,1'])->name('kasir.destroy');
+    Route::get('/kasir/{id}/cetak', 'print')->middleware('permission:view_kasir')->name('kasir.print');
+
+    Route::get('/kasir/pesanan', 'pesanan')->middleware('permission:view_kasir')->name('kasir.pesanan');
+    Route::patch('/kasir/pesanan/{id}/status', 'updateStatus')->middleware('permission:edit_kasir')->name('kasir.update-status');
+    Route::get('/kasir/laporan', 'laporan')->middleware('permission:view_kasir')->name('kasir.laporan');
+    Route::get('/kasir/laporan-keuntungan', 'laporanKeuntungan')->middleware('permission:view_kasir')->name('kasir.laporan-keuntungan');
+});
+
 Route::get('/rapat-public/{id}/absen', [AbsenRapatController::class, 'publicShow'])->name('rapat.public.show');
 Route::post('/rapat-public/{id}/absen', [AbsenRapatController::class, 'publicStore'])->name('rapat.public.store');
 
@@ -50,8 +52,7 @@ Route::post('/rapat-public/{id}/absen', [AbsenRapatController::class, 'publicSto
 |--------------------------------------------------------------------------
 */
 
-Route::middleware(['auth', 'verified'])->group(function () {
-    
+Route::middleware(['auth', 'verified', 'trusted.origin', 'session.timeout'])->group(function () {
     Route::get('/dashboard', function () {
         return Inertia::render('Dashboard');
     })->name('dashboard');
@@ -62,14 +63,26 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::delete('/profile', 'destroy')->name('profile.destroy');
     });
 
+    Route::get('/rapat', [AbsenRapatController::class, 'index'])
+        ->middleware('permission:view_rapat')
+        ->name('rapat.index');
+    Route::post('/rapat', [AbsenRapatController::class, 'store'])
+        ->middleware(['permission:create_rapat', 'throttle:10,1'])
+        ->name('rapat.store');
+    Route::get('/rapat/{id}', [AbsenRapatController::class, 'show'])
+        ->middleware('permission:view_rapat')
+        ->name('rapat.show');
+    Route::put('/rapat/{id}', [AbsenRapatController::class, 'update'])
+        ->middleware(['permission:edit_rapat', 'throttle:10,1'])
+        ->name('rapat.update');
+    Route::post('/rapat/{id}/hadir', [AbsenRapatController::class, 'storeKehadiran'])
+        ->middleware(['permission:create_rapat', 'throttle:10,1'])
+        ->name('rapat.hadir.store');
+    Route::get('/rapat/{id}/cetak', [AbsenRapatController::class, 'print'])
+        ->middleware('permission:view_rapat')
+        ->name('rapat.print');
 
-
-	Route::resource('rapat', AbsenRapatController::class)->only([
-        'index', 'store', 'show', 'update'
-    ]);
-   // Route::post('/rapat/{id}/hadir', [AbsenRapatController::class, 'storeKehadiran'])->name('absen.hadir.store');
-    Route::post('/rapat/{id}/hadir', [AbsenRapatController::class, 'storeKehadiran'])->name('rapat.hadir.store');
-   /*
+    /*
     |--------------------------------------------------------------------------
     | Manajemen Menu
     |--------------------------------------------------------------------------
@@ -127,20 +140,52 @@ Route::middleware(['auth', 'verified'])->group(function () {
 
     /*
     |--------------------------------------------------------------------------
+    | Manajemen Pembelian
+    |--------------------------------------------------------------------------
+    */
+    Route::controller(\App\Http\Controllers\PembelianController::class)->group(function () {
+        Route::get('/pembelian', 'index')->middleware('permission:view_pembelian')->name('pembelian.index');
+        Route::get('/pembelian/create', 'create')->middleware('permission:create_pembelian')->name('pembelian.create');
+        Route::post('/pembelian', 'store')->middleware(['permission:create_pembelian', 'throttle:10,1'])->name('pembelian.store');
+        Route::get('/pembelian/{id}', 'show')->middleware('permission:view_pembelian')->name('pembelian.show');
+        Route::delete('/pembelian/{id}', 'destroy')->middleware(['permission:delete_pembelian', 'throttle:10,1'])->name('pembelian.destroy');
+    });
+
+    /*
+    |--------------------------------------------------------------------------
+    | Stok Opname
+    |--------------------------------------------------------------------------
+    */
+    Route::controller(\App\Http\Controllers\StokOpnameController::class)->group(function () {
+        Route::get('/stok-opname', 'index')->middleware('permission:view_stok_opname')->name('stok-opname.index');
+        Route::get('/stok-opname/create', 'create')->middleware('permission:create_stok_opname')->name('stok-opname.create');
+        Route::post('/stok-opname', 'store')->middleware(['permission:create_stok_opname', 'throttle:10,1'])->name('stok-opname.store');
+        Route::get('/stok-opname/{id}', 'show')->middleware('permission:view_stok_opname')->name('stok-opname.show');
+        Route::delete('/stok-opname/{id}', 'destroy')->middleware(['permission:delete_stok_opname', 'throttle:10,1'])->name('stok-opname.destroy');
+    });
+
+    /*
+    |--------------------------------------------------------------------------
+    | Retur Barang
+    |--------------------------------------------------------------------------
+    */
+    Route::controller(\App\Http\Controllers\ReturController::class)->group(function () {
+        Route::get('/retur', 'index')->middleware('permission:view_retur')->name('retur.index');
+        Route::get('/retur/create', 'create')->middleware('permission:create_retur')->name('retur.create');
+        Route::post('/retur', 'store')->middleware(['permission:create_retur', 'throttle:10,1'])->name('retur.store');
+        Route::get('/retur/{id}', 'show')->middleware('permission:view_retur')->name('retur.show');
+        Route::delete('/retur/{id}', 'destroy')->middleware(['permission:delete_retur', 'throttle:10,1'])->name('retur.destroy');
+    });
+
+    /*
+    |--------------------------------------------------------------------------
     | Manajemen Dana DKK
     |--------------------------------------------------------------------------
     */
     Route::controller(DanaDkkController::class)->group(function () {
         Route::get('/dana-dkks', 'index')->middleware('permission:view_dana_dkks')->name('dana-dkks.index');
-        Route::post('/dana-dkks', 'store')->middleware(['permission:create_ কান্না_dkks', 'throttle:10,1'])->name('dana-dkks.store');
+        Route::post('/dana-dkks', 'store')->middleware(['permission:create_dana_dkks', 'throttle:10,1'])->name('dana-dkks.store');
     });
-
-    /*
-    |--------------------------------------------------------------------------
-    | Transaksi Kasir
-    |--------------------------------------------------------------------------
-    */
-   
 
     /*
     |--------------------------------------------------------------------------
@@ -155,10 +200,10 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::controller(PinjamanBayarController::class)->group(function () {
         Route::get('/pinjaman-bayar', 'index')->middleware('permission:view_pinjaman_bayar')->name('pinjaman-bayar.index');
         Route::post('/pinjaman-bayar', 'store')->middleware(['permission:create_pinjaman_bayar', 'throttle:10,1'])->name('pinjaman-bayar.store');
-        // Tambahkan di dalam grup middleware auth di web.php
-        Route::get('/pinjaman-bayar/{id}/cetak', [PinjamanBayarController::class, 'print'])->name('pinjaman-bayar.print');
-        });
-
+        Route::get('/pinjaman-bayar/{id}/cetak', [PinjamanBayarController::class, 'print'])
+            ->middleware('permission:view_pinjaman_bayar')
+            ->name('pinjaman-bayar.print');
+    });
 });
 
 require __DIR__.'/auth.php';

@@ -16,5 +16,6 @@ class Produk extends Model
         'satuan',
         'deskripsi',
         'gambar',
+        'owner_user_id',
     ];
 }

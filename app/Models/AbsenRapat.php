@@ -18,5 +18,6 @@ class AbsenRapat extends Model
         'nama_kegiatan',
         'tanggal',
         'pukul',
+        'owner_user_id',
     ];
 }

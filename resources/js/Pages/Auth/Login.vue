@@ -9,6 +9,7 @@ import { Head, Link, useForm } from '@inertiajs/vue3';
 
 defineProps({
     canResetPassword: Boolean,
+    loginChallenge: String,
     status: String,
 });
 
@@ -16,11 +17,13 @@ const form = useForm({
     email: '',
     password: '',
     remember: false,
+    challenge_answer: '',
+    website: '',
 });
 
 const submit = () => {
     form.post(route('login'), {
-        onFinish: () => form.reset('password'),
+        onFinish: () => form.reset('password', 'challenge_answer', 'website'),
     });
 };
 </script>
@@ -126,6 +129,37 @@ const submit = () => {
 
                         <InputError class="mt-2"
                             :message="form.errors.password" />
+                    </div>
+
+                    <div>
+                        <InputLabel for="challenge_answer"
+                            :value="`Verifikasi manusia: ${loginChallenge} = ?`"
+                            class="mb-2 text-sm font-semibold text-gray-700" />
+
+                        <TextInput id="challenge_answer"
+                            type="number"
+                            v-model="form.challenge_answer"
+                            required
+                            inputmode="numeric"
+                            placeholder="Jawab hasil perhitungan"
+                            class="w-full rounded-2xl border-0 bg-white/80 shadow-sm ring-1 ring-gray-200 focus:ring-2 focus:ring-green-500 py-3 px-4 transition duration-300" />
+
+                        <input
+                            v-model="form.website"
+                            type="text"
+                            name="website"
+                            tabindex="-1"
+                            autocomplete="off"
+                            class="hidden"
+                            aria-hidden="true"
+                        />
+
+                        <p class="mt-2 text-xs text-gray-500">
+                            Pemeriksaan ini membantu memastikan yang login adalah manusia, bukan bot.
+                        </p>
+
+                        <InputError class="mt-2"
+                            :message="form.errors.challenge_answer || form.errors.website" />
                     </div>
 
                     <!-- Remember -->

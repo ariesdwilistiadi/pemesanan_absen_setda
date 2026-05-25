@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Models\Anggota;
 use App\Models\Agama;
+use App\Support\RecordOwnership;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
 
@@ -12,9 +13,11 @@ class AnggotaController extends Controller
     /**
      * Display a listing of the resource.
      */
-    public function index()
+    public function index(Request $request)
     {
-        $anggotas = Anggota::with('agama')->latest()->get();
+        $anggotasQuery = Anggota::with('agama')->latest();
+        RecordOwnership::scopeOwned($anggotasQuery, $request->user());
+        $anggotas = $anggotasQuery->get();
         $agamas = Agama::all();
 
         return Inertia::render('Anggota/Index', [
@@ -52,6 +55,7 @@ class AnggotaController extends Controller
         ]);
 
         $validated['status'] = 1; // Default status active
+        $validated['owner_user_id'] = $request->user()->id;
 
         Anggota::create($validated);
 
@@ -79,6 +83,7 @@ class AnggotaController extends Controller
      */
     public function update(Request $request, Anggota $anggota)
     {
+        RecordOwnership::abortUnlessOwned($anggota, $request->user());
         $validated = $request->validate([
             'nama' => 'required|string|max:100',
             'no_identitas' => 'required|string|max:25',
@@ -105,6 +110,7 @@ class AnggotaController extends Controller
      */
     public function destroy(Anggota $anggota)
     {
+        RecordOwnership::abortUnlessOwned($anggota, request()->user());
         $anggota->delete();
 
         return redirect()->back()->with('success', 'Anggota berhasil dihapus.');

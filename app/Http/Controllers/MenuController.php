@@ -6,6 +6,7 @@ use App\Http\Requests\ReorderMenuRequest;
 use App\Http\Requests\StoreMenuRequest;
 use App\Http\Requests\UpdateMenuRequest;
 use App\Models\Menu;
+use App\Support\RoutePermissionCatalog;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Inertia\Inertia;
@@ -18,6 +19,9 @@ class MenuController extends Controller
      */
     public function index()
     {
+        $catalog = app(RoutePermissionCatalog::class);
+        $catalog->syncPermissionsFromRoutes();
+
         $menus = Menu::whereNull('parent_id')
             ->with(['children' => function ($query) {
                 $query->orderBy('order', 'asc');
@@ -28,6 +32,7 @@ class MenuController extends Controller
         return Inertia::render('Menu/MenuManager', [
             'menus' => $menus,
             'permissions' => Permission::select(['id', 'name'])->orderBy('name')->get(),
+            'routeOptions' => $catalog->menuRouteOptions(),
         ]);
     }
 
