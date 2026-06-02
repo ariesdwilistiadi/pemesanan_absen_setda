@@ -31,11 +31,12 @@ Route::get('/', function () {
 });
 
 Route::controller(KasirController::class)->group(function () {
-    Route::get('/kasir', 'index')->middleware('permission:view_kasir')->name('kasir.index');
-    Route::get('/kasir/cari-peserta', 'cariPeserta')->middleware('permission:view_kasir')->name('kasir.cari-peserta');
-    Route::post('/kasir', 'store')->middleware(['permission:create_kasir', 'throttle:10,1'])->name('kasir.store');
+   // Route::get('/kasir', 'index')->middleware('permission:view_kasir')->name('kasir.index');
+   Route::get('/kasir', 'index')->name('kasir.index'); 
+   Route::get('/kasir/cari-peserta', 'cariPeserta')->name('kasir.cari-peserta');
+    Route::post('/kasir', 'store')->middleware(['throttle:10,1'])->name('kasir.store');
     Route::delete('/kasir/{id}', 'destroy')->middleware(['permission:delete_kasir', 'throttle:10,1'])->name('kasir.destroy');
-    Route::get('/kasir/{id}/cetak', 'print')->middleware('permission:view_kasir')->name('kasir.print');
+    Route::get('/kasir/{id}/cetak', 'print')->name('kasir.print');
 
     Route::get('/kasir/pesanan', 'pesanan')->middleware('permission:view_kasir')->name('kasir.pesanan');
     Route::patch('/kasir/pesanan/{id}/status', 'updateStatus')->middleware('permission:edit_kasir')->name('kasir.update-status');
@@ -179,9 +180,13 @@ Route::middleware(['auth', 'verified', 'trusted.origin', 'session.timeout'])->gr
 
     /*
     |--------------------------------------------------------------------------
-    | Manajemen Dana DKK
+    | Profil Instansi
     |--------------------------------------------------------------------------
     */
+    Route::controller(\App\Http\Controllers\InstansiProfileController::class)->group(function () {
+        Route::get('/instansi', 'edit')->middleware('permission:manage_instansi')->name('instansi.edit');
+        Route::post('/instansi', 'update')->middleware(['permission:manage_instansi', 'throttle:10,1'])->name('instansi.update');
+    });
     Route::controller(DanaDkkController::class)->group(function () {
         Route::get('/dana-dkks', 'index')->middleware('permission:view_dana_dkks')->name('dana-dkks.index');
         Route::post('/dana-dkks', 'store')->middleware(['permission:create_dana_dkks', 'throttle:10,1'])->name('dana-dkks.store');

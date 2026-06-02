@@ -16,11 +16,18 @@ use Illuminate\Validation\Rule;
 class KasirController extends Controller
 {
 	
-    public function index(Request $request)
+   public function index(Request $request)
     {
         $produks = Produk::all();
         $transaksisQuery = TransaksiHeader::with('details.produk')->latest();
-        RecordOwnership::scopeOwned($transaksisQuery, $request->user());
+
+        // --- PERBAIKAN DI SINI ---
+        // Cek apakah ada user yang sedang login
+        if ($request->user()) {
+            RecordOwnership::scopeOwned($transaksisQuery, $request->user());
+        }
+        // -------------------------
+
         $transaksis = $transaksisQuery->get();
 
         return Inertia::render('Kasir/Index', [
@@ -105,7 +112,7 @@ class KasirController extends Controller
             'jumlah_bayar' => $validated['jumlah_bayar'],
             'kembalian' => $kembalian
         ] + [
-            'owner_user_id' => $request->user()->id,
+            'owner_user_id' => $request->user()?->id,
         ]);
 
         foreach ($validated['cart'] as $item) {
@@ -133,7 +140,10 @@ class KasirController extends Controller
     public function print($id)
     {
         $transaksi = TransaksiHeader::with('details.produk')->findOrFail($id);
-        RecordOwnership::abortUnlessOwned($transaksi, request()->user());
+        
+        if (request()->user()) {
+            RecordOwnership::abortUnlessOwned($transaksi, request()->user());
+        }
         
         return view('print.kasir', compact('transaksi'));
     }
@@ -141,7 +151,10 @@ class KasirController extends Controller
     public function destroy($id)
     {
         $transaksi = TransaksiHeader::findOrFail($id);
-        RecordOwnership::abortUnlessOwned($transaksi, request()->user());
+        
+        if (request()->user()) {
+            RecordOwnership::abortUnlessOwned($transaksi, request()->user());
+        }
         
         // Kembalikan stok
         foreach ($transaksi->details as $detail) {
@@ -161,7 +174,10 @@ class KasirController extends Controller
     {
         // Get all transactions sorted by latest first
         $transaksisQuery = TransaksiHeader::with('details.produk')->latest();
-        RecordOwnership::scopeOwned($transaksisQuery, $request->user());
+        
+        if ($request->user()) {
+            RecordOwnership::scopeOwned($transaksisQuery, $request->user());
+        }
         $transaksis = $transaksisQuery->get();
 
         return Inertia::render('Kasir/Pesanan', [
@@ -176,7 +192,10 @@ class KasirController extends Controller
         ]);
 
         $transaksi = TransaksiHeader::findOrFail($id);
-        RecordOwnership::abortUnlessOwned($transaksi, $request->user());
+        
+        if ($request->user()) {
+            RecordOwnership::abortUnlessOwned($transaksi, $request->user());
+        }
         $transaksi->status = $request->status;
         
         // If status becomes batal, return stock
@@ -198,7 +217,10 @@ class KasirController extends Controller
     public function laporan(Request $request)
     {
         $query = TransaksiHeader::with('details.produk')->where('status', 'selesai')->latest();
-        RecordOwnership::scopeOwned($query, $request->user());
+        
+        if ($request->user()) {
+            RecordOwnership::scopeOwned($query, $request->user());
+        }
 
         // Simple filtering by date range
         if ($request->has('start_date') && $request->has('end_date')) {
@@ -225,7 +247,10 @@ class KasirController extends Controller
     public function laporanKeuntungan(Request $request)
     {
         $query = TransaksiHeader::with('details.produk')->where('status', 'selesai')->latest();
-        RecordOwnership::scopeOwned($query, $request->user());
+        
+        if ($request->user()) {
+            RecordOwnership::scopeOwned($query, $request->user());
+        }
 
         // Simple filtering by date range
         if ($request->has('start_date') && $request->has('end_date')) {

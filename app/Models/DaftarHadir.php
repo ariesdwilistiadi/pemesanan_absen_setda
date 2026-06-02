@@ -24,4 +24,9 @@ class DaftarHadir extends Model
         'email',
         'signature',
     ];
+
+    public function dinas()
+    {
+        return $this->belongsTo(Dinas::class, 'id_dinas', 'id');
+    }
 }

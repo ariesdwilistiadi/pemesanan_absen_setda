@@ -89,7 +89,7 @@ const submitForm = () => {
                 <div>
                     <label class="block text-sm font-medium text-gray-700 mb-1">Tipe Peserta <span class="text-red-500">*</span></label>
                     <select v-model="form.tipe_peserta" @change="handleTipePesertaChange" class="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-indigo-600 bg-white">
-                        <option value="internal">Internal (Pegawai / Karyawan)</option>
+                        <option value="internal">Internal </option>
                         <option value="eksternal">Eksternal (Tamu Instansi Luar)</option>
                     </select>
                 </div>
@@ -100,7 +100,7 @@ const submitForm = () => {
                 </div>
 
                 <div v-if="form.tipe_peserta === 'internal'">
-                    <label class="block text-sm font-medium text-gray-700 mb-1">NIP Karyawan</label>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">NIP</label>
                     <input v-model="form.nip" type="text" class="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-indigo-600" />
                 </div>
 

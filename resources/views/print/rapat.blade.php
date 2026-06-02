@@ -129,11 +129,14 @@
     <div class="container">
         <!-- Kop Surat -->
         <div class="kop-surat">
-            <!-- Bisa menambahkan logo di sini jika ada: <img src="..." style="float:left; width:80px;"> -->
-            <h1>PEMERINTAH PROVINSI DAERAH</h1>
-            <h2>DINAS / INSTANSI TERKAIT</h2>
-            <p>Jalan Contoh Alamat No. 123, Kota, Provinsi - Kode Pos 12345</p>
-            <p>Telp: (021) 1234567 | Email: info@instansi.go.id | Web: www.instansi.go.id</p>
+            @if($instansi->logo)
+            <img src="{{ asset('storage/' . $instansi->logo) }}" style="float:left; width:80px; margin-right: 15px;">
+            @endif
+            <h1>{{ $instansi->pemerintah }}</h1>
+            <h2>{{ $instansi->nama_instansi }}</h2>
+            <p>{{ $instansi->alamat }}</p>
+            <p>{{ $instansi->kontak }}</p>
+            <div style="clear:both;"></div>
         </div>
 
         <!-- Judul -->
@@ -211,9 +214,9 @@
                         <p>Pada Tanggal: {{ \Carbon\Carbon::parse($rapat->tanggal)->translatedFormat('d F Y') }}</p>
                         <br>
                         <p>Mengetahui,</p>
-                        <p><strong>Kepala Dinas / Instansi</strong></p>
-                        <div class="nama-kepala">NAMA LENGKAP KEPALA</div>
-                        <p>NIP. 19800101 200501 1 001</p>
+                        <p><strong>{{ $instansi->jabatan_kepala }}</strong></p>
+                        <div class="nama-kepala">{{ $instansi->nama_kepala }}</div>
+                        <p>{{ $instansi->nip_kepala ? 'NIP. ' . $instansi->nip_kepala : '' }}</p>
                     </div>
                 </td>
             </tr>

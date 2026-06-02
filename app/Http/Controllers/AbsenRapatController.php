@@ -83,7 +83,9 @@ class AbsenRapatController extends Controller
         
         $kehadiran = DaftarHadir::with('dinas')->where('absen_rapat_id', $id)->orderBy('created_at', 'asc')->get();
         
-        return view('print.rapat', compact('rapat', 'kehadiran'));
+        $instansi = \App\Models\InstansiProfile::firstOrCreate(['id' => 1]);
+        
+        return view('print.rapat', compact('rapat', 'kehadiran', 'instansi'));
     }
     
     // Metode untuk menampilkan form absen publik
