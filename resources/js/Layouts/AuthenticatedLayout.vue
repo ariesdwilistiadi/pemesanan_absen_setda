@@ -73,7 +73,7 @@ const isRouteCurrent = (routeName) => {
 
                     <div>
                         <div class="font-bold text-lg tracking-wide">
-                            Admin Panel
+                            SAPA SEKDA
                         </div>
 
                         <div class="text-xs text-emerald-200">

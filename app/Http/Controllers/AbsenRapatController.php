@@ -91,36 +91,14 @@ class AbsenRapatController extends Controller
     }
     
     // Metode untuk menampilkan list rapat aktif (publik - tanpa login)
-    public function publicList()
+   public function publicList()
     {
-        $now = now();
-        $today = $now->toDateString();
-        
-        // Hanya tampilkan rapat hari ini yang masih aktif (mulai <= sekarang < mulai + 4 jam)
+        $today = now()->toDateString();
+
+        // Hanya tampilkan semua rapat hari ini, diurutkan berdasarkan jam
         $rapats = AbsenRapat::whereDate('tanggal', $today)
-            ->get()
-            ->filter(function ($rapat) use ($now) {
-                try {
-                    // Parse tanggal (format: Y-m-d) dan pukul (format: H:i atau H:i:s)
-                    $timeStr = $rapat->pukul;
-                    if (strlen($timeStr) == 5) { // H:i format
-                        $timeStr .= ':00'; // add seconds
-                    }
-                    
-                    $startTime = \Carbon\Carbon::createFromFormat(
-                        'Y-m-d H:i:s',
-                        $rapat->tanggal . ' ' . $timeStr
-                    );
-                    $endTime = $startTime->copy()->addHours(4);
-                    
-                    // Rapat aktif jika: startTime <= now < endTime
-                    return $now->between($startTime, $endTime);
-                } catch (\Exception $e) {
-                    return false;
-                }
-            })
-            ->sortBy('pukul')
-            ->values();
+            ->orderBy('pukul', 'asc')
+            ->get();
 
         return Inertia::render('AbsenRapat/PublicList', [
             'rapats' => $rapats,
@@ -148,6 +126,7 @@ class AbsenRapatController extends Controller
             'nama'          => 'required|string|max:191',
             'jenis_kelamin' => 'required|in:laki-laki,perempuan',
             'id_dinas'      => 'nullable|integer', 
+			'jabatan'       => 'nullable|string', 
             'nama_external' => 'nullable|string|max:191',
             'telp'          => 'required|string|max:191',
             'email'         => 'required|email|max:191',

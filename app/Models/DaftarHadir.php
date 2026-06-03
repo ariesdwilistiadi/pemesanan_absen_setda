@@ -18,6 +18,7 @@ class DaftarHadir extends Model
         'tipe_peserta',
         'nip',
         'nama',
+		'jabatan',
         'id_dinas',
         'nama_external',
         'telp',

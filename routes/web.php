@@ -22,12 +22,7 @@ use Inertia\Inertia;
 */
 
 Route::get('/', function () {
-    return Inertia::render('Welcome', [
-        'canLogin' => Route::has('login'),
-        'canRegister' => Route::has('register'),
-        'laravelVersion' => Application::VERSION,
-        'phpVersion' => PHP_VERSION,
-    ]);
+    return redirect()->away('https://labs-sapasekda.kotabogor.go.id/login');
 });
 
 Route::controller(KasirController::class)->group(function () {
@@ -56,10 +51,7 @@ Route::get('/api/pegawai/{nip}', [AbsenRapatController::class, 'getPegawaiSimpeg
 */
 
 Route::middleware(['auth', 'verified', 'trusted.origin', 'session.timeout'])->group(function () {
-    Route::get('/dashboard', function () {
-        return Inertia::render('Dashboard');
-    })->name('dashboard');
-
+  Route::redirect('/dashboard', '/rapat')->name('dashboard');
     Route::controller(ProfileController::class)->group(function () {
         Route::get('/profile', 'edit')->name('profile.edit');
         Route::patch('/profile', 'update')->name('profile.update');

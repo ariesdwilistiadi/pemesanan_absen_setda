@@ -1,10 +1,21 @@
 <script setup>
-import { ref, nextTick, onMounted } from 'vue';
+import { ref, computed, nextTick, onMounted } from 'vue'; // PERBAIKAN: Tambah computed
 import { Head, useForm, usePage } from '@inertiajs/vue3';
 import { VueSignaturePad } from 'vue-signature-pad';
 import vSelect from 'vue-select';
 import 'vue-select/dist/vue-select.css';
 import axios from 'axios';
+
+// --- LOGIKA MATH CAPTCHA ---
+// Generate 2 angka acak antara 1 sampai 10
+const captchaNum1 = ref(Math.floor(Math.random() * 10) + 1);
+const captchaNum2 = ref(Math.floor(Math.random() * 10) + 1);
+const captchaAnswer = ref('');
+
+// Cek apakah jawaban user benar
+const isCaptchaValid = computed(() => {
+    return parseInt(captchaAnswer.value) === (captchaNum1.value + captchaNum2.value);
+});
 
 const props = defineProps({
     rapat: Object,
@@ -15,8 +26,8 @@ const props = defineProps({
 });
 
 const signaturePad = ref(null);
-
 const isSearchingNip = ref(false);
+
 const form = useForm({
     tipe_peserta: 'internal',
     nip: '',
@@ -55,18 +66,23 @@ const searchPegawai = async () => {
     try {
         const response = await axios.get(route('api.pegawai', form.nip));
         if (response.data && response.data.success) {
-            // Menyesuaikan jika respons API dibungkus nested array/object
             let pegawai = response.data.data;
             if (Array.isArray(pegawai)) pegawai = pegawai[0];
             
-            // Buka bungkusan JSON dari SIMPEG secara berlapis
             if (pegawai && pegawai.data) pegawai = pegawai.data;
             if (pegawai && pegawai.data) pegawai = pegawai.data;
 
             if (pegawai) {
-                // Otomatis isikan form jika API mengembalikan data nama
+                const toTitleCase = (str) => {
+                    if (!str) return '';
+                    return str.toString().toLowerCase().replace(/\b[a-z]/g, function(letter) {
+                        return letter.toUpperCase();
+                    });
+                };
+
                 if (pegawai.nama || pegawai.nama_pegawai || pegawai.nama_lengkap) {
-                    form.nama = (pegawai.nama || pegawai.nama_pegawai || pegawai.nama_lengkap).trim();
+                    const rawNama = (pegawai.nama || pegawai.nama_pegawai || pegawai.nama_lengkap).trim();
+                    form.nama = toTitleCase(rawNama);
                 }
 
                 const email = pegawai.email || pegawai.email_pegawai || pegawai.email_personal;
@@ -74,9 +90,12 @@ const searchPegawai = async () => {
                 const rawGender = pegawai.jenis_kelamin || pegawai.jk || pegawai.gender || pegawai.sex || pegawai.gender_text || pegawai.kelamin;
                 const gender = rawGender ? String(rawGender).trim().toLowerCase() : '';
                 const instansi = pegawai.instansi || pegawai.nama_instansi || pegawai.nama_dinas || pegawai.dinas || pegawai.unit_kerja || pegawai.nama_unit;
+                const jabatan = pegawai.jabatan;
 
-                if (email) form.email = email;
+                if (email) form.email = email.toLowerCase(); 
+                if (jabatan) form.jabatan = toTitleCase(jabatan);
                 if (phone) form.telp = phone;
+                
                 if (gender) {
                     if (/^(laki|male|m|pria)/.test(gender)) {
                         form.jenis_kelamin = 'laki-laki';
@@ -86,11 +105,12 @@ const searchPegawai = async () => {
                         form.jenis_kelamin = gender;
                     }
                 }
+
                 if (instansi) {
-                    form.nama_external = typeof instansi === 'object' ? (instansi.nama_dinas || instansi.nama || instansi.label || '') : instansi;
+                    const rawInstansi = typeof instansi === 'object' ? (instansi.nama_dinas || instansi.nama || instansi.label || '') : instansi;
+                    form.nama_external = toTitleCase(rawInstansi);
                 }
 
-                // Jika API mengembalikan nama dinas internal, coba cocokkan dengan opsi masterDinas
                 if (form.nama_external && masterDinas.length) {
                     const normalizedLabel = form.nama_external.toString().trim().toLowerCase();
                     const matched = masterDinas.find((dinas) => {
@@ -153,7 +173,6 @@ const submitForm = () => {
                 </p>
             </div>
 
-            <!-- Form -->
             <div class="p-6 space-y-5">
                 
                 <div>
@@ -173,14 +192,18 @@ const submitForm = () => {
                         </div>
                     </div>
                     <p class="text-xs text-gray-500 mt-1">Nama akan terisi otomatis dari SIMPEG setelah Anda mengetikkan NIP.</p>
-
                 </div>
 
                 <div>
                     <label class="block text-sm font-medium text-gray-700 mb-1">Nama Lengkap <span class="text-red-500">*</span></label>
                     <input v-model="form.nama" type="text" class="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-indigo-600" required />
                 </div>
-
+                
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Jabatan <span class="text-red-500">*</span></label>
+                    <input v-model="form.jabatan" type="text" class="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-indigo-600" required />
+                </div>
+                
                 <div>
                     <label class="block text-sm font-medium text-gray-700 mb-1">Jenis Kelamin <span class="text-red-500">*</span></label>
                     <input v-model="form.jenis_kelamin" type="text" placeholder="Laki-laki / Perempuan" class="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-indigo-600" required />
@@ -216,11 +239,21 @@ const submitForm = () => {
                     </div>
                 </div>
 
+                <div class="mt-4">
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Verifikasi Keamanan <span class="text-red-500">*</span></label>
+                    <div class="flex items-center space-x-3">
+                        <span class="px-4 py-3 bg-gray-100 border border-gray-300 rounded-xl font-bold text-gray-700 whitespace-nowrap">
+                            {{ captchaNum1 }} + {{ captchaNum2 }} =
+                        </span>
+                        <input v-model="captchaAnswer" type="number" class="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-indigo-600" placeholder="Ketik hasil..." required />
+                    </div>
+                </div>
+                
                 <button 
                     type="button" 
                     @click="submitForm" 
-                    :disabled="form.processing" 
-                    class="w-full mt-6 px-6 py-4 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl font-bold shadow-lg transition-colors disabled:opacity-50 text-lg"
+                    :disabled="form.processing || !isCaptchaValid" 
+                    class="w-full mt-6 px-6 py-4 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl font-bold shadow-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed text-lg"
                 >
                     {{ form.processing ? 'Menyimpan...' : 'Kirim Daftar Hadir' }}
                 </button>

@@ -1,0 +1,100 @@
+
+> build
+> vite build
+
+vite v7.3.5 building client environment for production...
+transforming...
+✓ 877 modules transformed.
+rendering chunks...
+computing gzip size...
+public/build/.vite/manifest.json                               59.87 kB │ gzip:  3.45 kB
+public/build/assets/Index-tFXnn9Pc.css                          0.23 kB │ gzip:  0.17 kB
+public/build/assets/Detail-ixkdC9kE.css                         0.26 kB │ gzip:  0.17 kB
+public/build/assets/PublicForm-ehsOJFft.css                     0.34 kB │ gzip:  0.20 kB
+public/build/assets/MenuManager-dFop3PLB.css                    0.45 kB │ gzip:  0.24 kB
+public/build/assets/Index-BI17oIC-.css                          0.50 kB │ gzip:  0.29 kB
+public/build/assets/vue-select-DA8hhM3z.css                     7.34 kB │ gzip:  1.84 kB
+public/build/assets/@vueform-DHc6NpEv.css                      14.45 kB │ gzip:  2.85 kB
+public/build/assets/app-DE7VReZK.css                           82.22 kB │ gzip: 13.13 kB
+public/build/assets/es-object-atoms-BR76m4z7.js                 0.06 kB │ gzip:  0.08 kB
+public/build/assets/_plugin-vue_export-helper-DlAUqK2U.js       0.09 kB │ gzip:  0.10 kB
+public/build/assets/es-define-property-D_7cP-M3.js              0.14 kB │ gzip:  0.14 kB
+public/build/assets/laravel-vite-plugin-DEL3ZhID.js             0.18 kB │ gzip:  0.16 kB
+public/build/assets/gopd-C1lCZ5Qs.js                            0.19 kB │ gzip:  0.16 kB
+public/build/assets/hasown-DwiY0sux.js                          0.20 kB │ gzip:  0.17 kB
+public/build/assets/call-bound-BjevruON.js                      0.32 kB │ gzip:  0.24 kB
+public/build/assets/dunder-proto-DMMoQCRQ.js                    0.48 kB │ gzip:  0.34 kB
+public/build/assets/math-intrinsics-DP1tGiab.js                 0.55 kB │ gzip:  0.30 kB
+public/build/assets/get-proto-B1cpzgdf.js                       0.55 kB │ gzip:  0.33 kB
+public/build/assets/PrimaryButton-fXgNDKkC.js                   0.55 kB │ gzip:  0.38 kB
+public/build/assets/call-bind-apply-helpers-Bp7rCXpm.js         0.61 kB │ gzip:  0.35 kB
+public/build/assets/side-channel-CXUttEC7.js                    0.63 kB │ gzip:  0.35 kB
+public/build/assets/side-channel-map-BKBnkCLi.js                0.75 kB │ gzip:  0.42 kB
+public/build/assets/side-channel-list-B5s5RcTm.js               0.80 kB │ gzip:  0.43 kB
+public/build/assets/vue-BxAz-TzW.js                             1.00 kB │ gzip:  0.62 kB
+public/build/assets/function-bind-CHqF18-c.js                   1.05 kB │ gzip:  0.52 kB
+public/build/assets/side-channel-weakmap-Dmcen0pq.js            1.05 kB │ gzip:  0.50 kB
+public/build/assets/TextInput-z92b78qo.js                       1.06 kB │ gzip:  0.59 kB
+public/build/assets/has-symbols-BaUvM3gb.js                     1.07 kB │ gzip:  0.44 kB
+public/build/assets/merge-images-KqwuZWhv.js                    1.12 kB │ gzip:  0.59 kB
+public/build/assets/es-errors-DRNByn_O.js                       1.16 kB │ gzip:  0.58 kB
+public/build/assets/deepmerge-DMmwEoUs.js                       1.61 kB │ gzip:  0.72 kB
+public/build/assets/GuestLayout-BKi5KqOJ.js                     1.89 kB │ gzip:  0.91 kB
+public/build/assets/Edit-DgAsJ0CJ.js                            2.08 kB │ gzip:  1.04 kB
+public/build/assets/ConfirmPassword-8uvWZB4T.js                 2.20 kB │ gzip:  1.15 kB
+public/build/assets/ForgotPassword-BkqSEGFI.js                  2.38 kB │ gzip:  1.26 kB
+public/build/assets/VerifyEmail-4GEFlFzH.js                     2.46 kB │ gzip:  1.30 kB
+public/build/assets/ResetPassword-DbLAt1PV.js                   2.94 kB │ gzip:  1.23 kB
+public/build/assets/ApplicationLogo-DkfTpTeJ.js                 3.25 kB │ gzip:  1.43 kB
+public/build/assets/UpdatePasswordForm-CvKg7Vg0.js              3.43 kB │ gzip:  1.39 kB
+public/build/assets/UpdateProfileInformationForm-CB8Sgt2f.js    3.45 kB │ gzip:  1.60 kB
+public/build/assets/vue-signature-pad-Bvp-m_0u.js               3.46 kB │ gzip:  1.43 kB
+public/build/assets/Show-mN422VdR.js                            4.68 kB │ gzip:  1.99 kB
+public/build/assets/Show-C2-o0UZn.js                            4.81 kB │ gzip:  2.00 kB
+public/build/assets/Register-Drodk9L7.js                        4.99 kB │ gzip:  1.75 kB
+public/build/assets/Show-r3boEw56.js                            5.17 kB │ gzip:  2.08 kB
+public/build/assets/Dashboard-Cdp1DGPs.js                       5.30 kB │ gzip:  1.98 kB
+public/build/assets/Laporan-B5tBtc8B.js                         5.83 kB │ gzip:  2.30 kB
+public/build/assets/DeleteUserForm-BcHlWBKV.js                  5.94 kB │ gzip:  2.48 kB
+public/build/assets/Index-UoS--CEd.js                           6.06 kB │ gzip:  2.61 kB
+public/build/assets/Index-CULbKIA_.js                           6.18 kB │ gzip:  2.65 kB
+public/build/assets/Index-DkQlntxu.js                           6.23 kB │ gzip:  2.67 kB
+public/build/assets/LaporanKeuntungan-tqZJNvnV.js               6.34 kB │ gzip:  2.24 kB
+public/build/assets/laravel-precognition-DVW-cmi1.js            6.60 kB │ gzip:  2.82 kB
+public/build/assets/Login-BKN8fp7u.js                           7.08 kB │ gzip:  2.83 kB
+public/build/assets/Index-CHIaZEAF.js                           7.99 kB │ gzip:  2.71 kB
+public/build/assets/Edit-DdghxcME.js                            8.00 kB │ gzip:  2.60 kB
+public/build/assets/UserManager-MDHkbTNB.js                     8.06 kB │ gzip:  2.91 kB
+public/build/assets/PublicForm-CDixIXs2.js                      8.52 kB │ gzip:  3.29 kB
+public/build/assets/get-intrinsic-BxFSNRXY.js                   8.75 kB │ gzip:  2.95 kB
+public/build/assets/signature_pad-DHswZkxk.js                   9.13 kB │ gzip:  3.06 kB
+public/build/assets/Pesanan-Bhdl3CiC.js                         9.21 kB │ gzip:  3.03 kB
+public/build/assets/object-inspect-CBgmME4J.js                  9.31 kB │ gzip:  3.45 kB
+public/build/assets/Create-CcuenkdX.js                          9.62 kB │ gzip:  3.32 kB
+public/build/assets/Create-DJdTJDxu.js                          9.95 kB │ gzip:  3.43 kB
+public/build/assets/PublicList--M-BT3w-.js                     10.02 kB │ gzip:  3.64 kB
+public/build/assets/Create--r8uGg4X.js                         10.02 kB │ gzip:  3.47 kB
+public/build/assets/AuthenticatedLayout-CyeGGwhq.js            10.50 kB │ gzip:  3.48 kB
+public/build/assets/Index-CaH5udos.js                          11.47 kB │ gzip:  3.63 kB
+public/build/assets/Index-DW4aNiqr.js                          13.59 kB │ gzip:  4.11 kB
+public/build/assets/PermissionManager-C7tR6X6E.js              14.46 kB │ gzip:  4.80 kB
+public/build/assets/Index-CAXgW9iL.js                          14.64 kB │ gzip:  4.79 kB
+public/build/assets/Index-CR9K4hk2.js                          14.91 kB │ gzip:  4.19 kB
+public/build/assets/qs-BdovKWbI.js                             16.21 kB │ gzip:  5.61 kB
+public/build/assets/Index-Dq8iFH4t.js                          16.40 kB │ gzip:  4.89 kB
+public/build/assets/vue-select-Dzc4L6EH.js                     17.42 kB │ gzip:  5.76 kB
+public/build/assets/Detail-CAL1_3T_.js                         18.07 kB │ gzip:  5.92 kB
+public/build/assets/MenuManager-DzYvszu7.js                    18.35 kB │ gzip:  5.85 kB
+public/build/assets/Index-CcniPHUj.js                          18.65 kB │ gzip:  6.27 kB
+public/build/assets/PublicIndex-D7pjHGa6.js                    18.78 kB │ gzip:  6.31 kB
+public/build/assets/Welcome-CpVGEZ3v.js                        19.56 kB │ gzip:  6.57 kB
+public/build/assets/qrcode.vue-D6G5OSM9.js                     19.73 kB │ gzip:  6.93 kB
+public/build/assets/lodash-es-DVN0BsA9.js                      22.51 kB │ gzip:  8.09 kB
+public/build/assets/app-BykBBF9s.js                            29.80 kB │ gzip:  9.90 kB
+public/build/assets/axios-DsMmbvD4.js                          42.35 kB │ gzip: 16.68 kB
+public/build/assets/sortablejs-BlJ3050e.js                     44.69 kB │ gzip: 15.06 kB
+public/build/assets/vuedraggable-8i_qBHft.js                   51.42 kB │ gzip: 18.92 kB
+public/build/assets/@vueform-Dc9MQVcP.js                       55.86 kB │ gzip: 17.95 kB
+public/build/assets/@inertiajs-K4KhApRi.js                    100.67 kB │ gzip: 31.75 kB
+public/build/assets/@vue-CrlMz8LF.js                          203.22 kB │ gzip: 76.61 kB
+✓ built in 7.97s

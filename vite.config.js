@@ -33,6 +33,7 @@ export default defineConfig({
         sourcemap: false,
         cssCodeSplit: true,
         manifest: true,
+        manifest: 'manifest.json',
         rollupOptions: {
             output: {
                 manualChunks(id) {
