@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Models\AbsenRapat;
 use App\Models\Produk;
+use App\Models\Ruangan;
 use App\Models\DaftarHadir;
 use App\Models\TransaksiHeader;
 use App\Models\TransaksiDetail;
@@ -13,12 +14,15 @@ use Inertia\Inertia;
 use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
 
+use App\Models\InstansiProfile;
+
 class KasirController extends Controller
 {
 	
    public function index(Request $request)
     {
         $produks = Produk::all();
+        $ruangans = Ruangan::where('is_active', true)->orderBy('nama_ruangan')->get();
         $transaksisQuery = TransaksiHeader::with('details.produk')->latest();
 
         // --- PERBAIKAN DI SINI ---
@@ -29,10 +33,13 @@ class KasirController extends Controller
         // -------------------------
 
         $transaksis = $transaksisQuery->get();
+        $instansi = InstansiProfile::first();
 
         return Inertia::render('Kasir/Index', [
             'produks' => $produks,
+            'ruangans' => $ruangans,
             'transaksis' => $transaksis,
+            'instansi' => $instansi,
             'initialPesertaId' => $request->query('id_peserta')
         ]);
     }
@@ -69,6 +76,7 @@ class KasirController extends Controller
             'id_absen_rapats' => ['nullable', Rule::exists(DaftarHadir::class, 'id')],
             'nip' => 'nullable|string',
             'nama' => 'required|string',
+            'id_ruangan' => ['nullable', Rule::exists(Ruangan::class, 'id')],
             'nomor_meja' => 'nullable|string',
             'keterangan' => 'nullable|string',
             'metode_pembayaran' => 'required|in:cash,qris',
@@ -102,6 +110,7 @@ class KasirController extends Controller
             'id_absen_rapats' => $validated['id_absen_rapats'],
             'nip' => $validated['nip'] ?? null,
             'nama' => $validated['nama'],
+            'id_ruangan' => $validated['id_ruangan'] ?? null,
             'nomor_meja' => $validated['nomor_meja'] ?? null,
             'tanggal_transaksi' => now(),
             'total_item' => $totalItem,

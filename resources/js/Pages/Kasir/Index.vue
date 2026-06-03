@@ -18,6 +18,10 @@ const props = defineProps({
         type: Array,
         default: () => [],
     },
+    ruangans: {
+        type: Array,
+        default: () => [],
+    },
     transaksis: {
         type: Array,
         default: () => [],
@@ -25,6 +29,10 @@ const props = defineProps({
     initialPesertaId: {
         type: [String, Number],
         default: null
+    },
+    instansi: {
+        type: Object,
+        default: () => null
     }
 });
 
@@ -67,11 +75,12 @@ const handleSearchPesertaById = async (id) => {
 
 // Search participant by NIP
 const cart = ref([]);
+const idRuangan = ref('');
 const nomorMeja = ref('');
 const keterangan = ref('');
 
 // State for Payment
-const metodePembayaran = ref('cash');
+const metodePembayaran = ref('qris');
 const jumlahBayar = ref(0);
 
 // Format currency
@@ -212,20 +221,18 @@ const processCheckout = () => {
         return;
     }
 
-    if (metodePembayaran.value === 'cash' && jumlahBayar.value < cartTotal.value) {
-        alert(`Jumlah bayar kurang! Minimal bayar adalah ${formatRupiah(cartTotal.value)}`);
-        return;
-    }
+    // QRIS tidak memerlukan validasi jumlah bayar, langsung proses saja
 
     if (confirm(`Proses transaksi untuk ${peserta.value.nama} dengan total ${formatRupiah(cartTotal.value)}?`)) {
         router.post(route('kasir.store'), {
             id_absen_rapats: peserta.value.id, // Akan bernilai null jika tamu
             nip: peserta.value.nip,
             nama: peserta.value.nama,
+            id_ruangan: idRuangan.value || null,
             nomor_meja: nomorMeja.value,
             keterangan: keterangan.value,
-            metode_pembayaran: metodePembayaran.value,
-            jumlah_bayar: metodePembayaran.value === 'cash' ? jumlahBayar.value : cartTotal.value,
+            metode_pembayaran: 'qris',
+            jumlah_bayar: cartTotal.value,
             cart: cart.value
         }, {
             preserveScroll: true,
@@ -234,20 +241,24 @@ const processCheckout = () => {
                 const printId = page.props.flash?.print_id;
                 if (printId) {
                     window.open(route('kasir.print', printId), '_blank', 'width=400,height=600');
+                }
+                
+                // Tampilkan notifikasi sesuai metode pembayaran
+                let successMsg = '';
+                if (metodePembayaran.value === 'qris') {
+                    successMsg = 'Pemesanan sudah masuk, silahkan tunggu';
                 } else {
-                    // Tampilkan alert sukses dan kembalian jika tidak print
-                    let successMsg = 'Transaksi Berhasil!';
+                    successMsg = 'Transaksi Berhasil!';
                     if (metodePembayaran.value === 'cash') {
                         successMsg += `\nKembalian: ${formatRupiah(kembalian.value)}`;
                     }
-                    alert(successMsg);
                 }
+                alert(successMsg);
 
                 // Reset form
                 cart.value = [];
                 peserta.value = null;
-                searchNip.value = '';
-                nomorMeja.value = '';
+                searchNip.value = '';                idRuangan.value = '';                nomorMeja.value = '';
                 keterangan.value = '';
                 metodePembayaran.value = 'cash';
                 jumlahBayar.value = 0;
@@ -463,49 +474,7 @@ const deleteTransaksi = (id) => {
 						</div>
 					</div>
 
-                        <div class="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
-                            <div class="p-6 border-b border-gray-50 bg-gray-50/30">
-                                <h3 class="text-lg font-bold text-gray-900">Riwayat Transaksi Terakhir</h3>
-                            </div>
-                            <div class="overflow-x-auto p-4">
-                                <table class="w-full text-sm">
-                                    <thead>
-                                        <tr class="border-b border-gray-200">
-                                            <th class="text-left py-2 px-2">No. Transaksi</th>
-                                            <th class="text-left py-2 px-2">Waktu</th>
-                                            <th class="text-left py-2 px-2">Pemesan / Meja</th>
-                                            <th class="text-center py-2 px-2">Items</th>
-                                            <th class="text-right py-2 px-2">Total</th>
-                                            <th class="text-center py-2 px-2">Aksi</th>
-                                        </tr>
-                                    </thead>
-                                    <tbody>
-                                        <tr v-for="trx in transaksis" :key="trx.id" class="border-b border-gray-100 hover:bg-gray-50">
-                                            <td class="py-2 px-2 font-mono text-xs">{{ trx.no_transaksi }}</td>
-                                            <td class="py-2 px-2">{{ new Date(trx.tanggal_transaksi).toLocaleString('id-ID') }}</td>
-                                            <td class="py-2 px-2">
-                                                <div class="font-semibold text-gray-900">{{ trx.nama }}</div>
-                                                <div class="text-xs" :class="trx.id_absen_rapats ? 'text-gray-500' : 'text-emerald-600 font-medium'">
-                                                    {{ trx.id_absen_rapats ? 'Peserta' : 'Tamu Umum' }} | Meja: {{ trx.nomor_meja || '-' }}
-                                                </div>
-                                            </td>
-                                            <td class="py-2 px-2 text-center">{{ trx.total_item }}</td>
-                                            <td class="py-2 px-2 text-right font-bold text-indigo-600">{{ formatRupiah(trx.total_harga) }}</td>
-                                            <td class="py-2 px-2 text-center">
-                                                <button @click="deleteTransaksi(trx.id)" class="text-red-600 hover:bg-red-50 p-1.5 rounded" title="Batalkan Transaksi">
-                                                    <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                                                    </svg>
-                                                </button>
-                                            </td>
-                                        </tr>
-                                        <tr v-if="transaksis.length === 0">
-                                            <td colspan="6" class="text-center py-4 text-gray-500">Belum ada riwayat transaksi.</td>
-                                        </tr>
-                                    </tbody>
-                                </table>
-                            </div>
-                        </div>
+                        <!-- Riwayat Transaksi Terakhir dihapus sesuai permintaan -->
 
                     </div>
 
@@ -544,6 +513,15 @@ const deleteTransaksi = (id) => {
 
                             <div class="space-y-3 mb-6 pt-4 border-t border-gray-100">
                                 <div>
+                                    <label class="block text-xs font-medium text-gray-700 mb-1">Ruangan</label>
+                                    <select v-model="idRuangan" class="w-full rounded-lg border-gray-300 shadow-sm text-sm focus:border-indigo-500 focus:ring-indigo-500">
+                                        <option value="">-- Pilih Ruangan --</option>
+                                        <option v-for="ruangan in ruangans" :key="ruangan.id" :value="ruangan.id">
+                                            {{ ruangan.nama_ruangan }}
+                                        </option>
+                                    </select>
+                                </div>
+                                <div>
                                     <label class="block text-xs font-medium text-gray-700 mb-1">Nomor Meja</label>
                                     <input v-model="nomorMeja" type="text" placeholder="Cth: Meja 12" class="w-full rounded-lg border-gray-300 shadow-sm text-sm focus:border-indigo-500 focus:ring-indigo-500">
                                 </div>
@@ -568,48 +546,24 @@ const deleteTransaksi = (id) => {
                             <div class="space-y-4 mb-6 pt-4 border-t border-gray-100" v-if="cart.length > 0">
                                 <div>
                                     <label class="block text-sm font-bold text-gray-900 mb-2">Metode Pembayaran</label>
-                                    <div class="grid grid-cols-2 gap-3">
+                                    <div class="grid grid-cols-1 gap-3">
                                         <button 
-                                            @click="metodePembayaran = 'cash'"
-                                            :class="metodePembayaran === 'cash' ? 'bg-indigo-50 border-indigo-500 text-indigo-700' : 'bg-white border-gray-200 text-gray-600 hover:bg-gray-50'"
-                                            class="border-2 rounded-xl py-3 font-semibold transition-all flex items-center justify-center gap-2"
-                                        >
-                                            <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 9V7a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2m2 4h10a2 2 0 002-2v-6a2 2 0 00-2-2H9a2 2 0 00-2 2v6a2 2 0 002 2zm7-5a2 2 0 11-4 0 2 2 0 014 0z" /></svg>
-                                            CASH
-                                        </button>
-                                        <button 
-                                            @click="metodePembayaran = 'qris'; jumlahBayar = cartTotal"
-                                            :class="metodePembayaran === 'qris' ? 'bg-indigo-50 border-indigo-500 text-indigo-700' : 'bg-white border-gray-200 text-gray-600 hover:bg-gray-50'"
-                                            class="border-2 rounded-xl py-3 font-semibold transition-all flex items-center justify-center gap-2"
+                                            class="bg-indigo-50 border-indigo-500 text-indigo-700 border-2 rounded-xl py-3 font-semibold flex items-center justify-center gap-2 w-full cursor-default"
                                         >
                                             <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v1m6 11h2m-6 0h-2v4m0-11v3m0 0h.01M12 12h4.01M16 20h4M4 12h4m12 0h.01M5 8h2a1 1 0 001-1V5a1 1 0 00-1-1H5a1 1 0 00-1 1v2a1 1 0 001 1zm12 0h2a1 1 0 001-1V5a1 1 0 00-1-1h-2a1 1 0 00-1 1v2a1 1 0 001 1zM5 20h2a1 1 0 001-1v-2a1 1 0 00-1-1H5a1 1 0 00-1 1v2a1 1 0 001 1z" /></svg>
                                             QRIS
                                         </button>
                                     </div>
                                 </div>
-
-                                <div v-if="metodePembayaran === 'cash'" class="space-y-3 p-4 bg-slate-50 rounded-xl border border-slate-200">
-                                    <div>
-                                        <label class="block text-xs font-bold text-gray-700 mb-1">Jumlah Uang Diterima (Rp)</label>
-                                        <input v-model.number="jumlahBayar" type="number" min="0" class="w-full rounded-lg border-gray-300 shadow-sm font-bold text-lg text-emerald-600 focus:border-indigo-500 focus:ring-indigo-500">
-                                    </div>
-                                    
-                                    <div class="flex justify-between items-center pt-2 border-t border-slate-200">
-                                        <span class="text-sm font-bold text-gray-600">Kembalian:</span>
-                                        <span class="font-bold text-lg" :class="kembalian > 0 ? 'text-red-500' : 'text-gray-400'">
-                                            {{ formatRupiah(kembalian) }}
-                                        </span>
-                                    </div>
-                                    
-                                    <div class="grid grid-cols-3 gap-2 mt-2">
-                                        <button @click="jumlahBayar = cartTotal" class="text-xs py-1 border rounded bg-white hover:bg-gray-50">Uang Pas</button>
-                                        <button @click="jumlahBayar = 50000" class="text-xs py-1 border rounded bg-white hover:bg-gray-50">50K</button>
-                                        <button @click="jumlahBayar = 100000" class="text-xs py-1 border rounded bg-white hover:bg-gray-50">100K</button>
-                                    </div>
-                                </div>
                                 
-                                <div v-if="metodePembayaran === 'qris'" class="p-4 bg-indigo-50 rounded-xl border border-indigo-100 text-center">
-                                    <p class="text-sm text-indigo-800 font-medium">Arahkan customer untuk scan QRIS sebesar <b>{{ formatRupiah(cartTotal) }}</b>.</p>
+                                <div class="p-4 bg-indigo-50 rounded-xl border border-indigo-100 text-center">
+                                    <p class="text-sm text-indigo-800 font-medium mb-3">Arahkan customer untuk scan QRIS sebesar <b>{{ formatRupiah(cartTotal) }}</b>.</p>
+                                    <div v-if="instansi?.qris_image" class="flex justify-center">
+                                        <img :src="'/storage/' + instansi.qris_image" alt="QRIS" class="w-48 h-48 object-contain rounded-lg border-2 border-indigo-200">
+                                    </div>
+                                    <div v-else class="text-xs text-red-500 bg-red-50 p-2 rounded-lg border border-red-100">
+                                        Gambar QRIS belum diunggah oleh Admin. Transaksi tetap dapat diproses.
+                                    </div>
                                 </div>
                             </div>
 

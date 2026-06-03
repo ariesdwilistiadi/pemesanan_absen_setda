@@ -212,15 +212,6 @@ const submit = () => {
 
                 </form>
 
-                <!-- Footer -->
-                <div class="mt-8 text-center text-sm text-gray-600">
-                    Belum punya akun?
-                    <Link :href="route('register')"
-                        class="font-bold text-green-600 hover:text-green-700">
-                    Daftar Sekarang
-                    </Link>
-                </div>
-
             </div>
 
         </div>

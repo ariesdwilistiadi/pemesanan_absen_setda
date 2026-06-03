@@ -44,8 +44,10 @@ Route::controller(KasirController::class)->group(function () {
     Route::get('/kasir/laporan-keuntungan', 'laporanKeuntungan')->middleware('permission:view_kasir')->name('kasir.laporan-keuntungan');
 });
 
+Route::get('/rapat-public', [AbsenRapatController::class, 'publicList'])->name('rapat.public.list');
 Route::get('/rapat-public/{id}/absen', [AbsenRapatController::class, 'publicShow'])->name('rapat.public.show');
 Route::post('/rapat-public/{id}/absen', [AbsenRapatController::class, 'publicStore'])->name('rapat.public.store');
+Route::get('/api/pegawai/{nip}', [AbsenRapatController::class, 'getPegawaiSimpeg'])->name('api.pegawai');
 
 /*
 |--------------------------------------------------------------------------

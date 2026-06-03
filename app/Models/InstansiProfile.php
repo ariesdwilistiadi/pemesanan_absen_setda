@@ -20,5 +20,6 @@ class InstansiProfile extends Model
         'nip_kepala',
         'jabatan_kepala',
         'logo',
+        'qris_image',
     ];
 }

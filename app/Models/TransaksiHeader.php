@@ -11,6 +11,7 @@ class TransaksiHeader extends Model
         'id_absen_rapats',
         'nip',
         'nama',
+        'id_ruangan',
         'nomor_meja',
         'tanggal_transaksi',
         'total_item',
@@ -31,5 +32,10 @@ class TransaksiHeader extends Model
     public function absen()
     {
         return $this->belongsTo(AbsenRapat::class, 'id_absen_rapats');
+    }
+
+    public function ruangan()
+    {
+        return $this->belongsTo(Ruangan::class, 'id_ruangan');
     }
 }

@@ -8,6 +8,7 @@ import QrcodeVue from 'qrcode.vue';
 // Import Vue Select
 import vSelect from 'vue-select';
 import 'vue-select/dist/vue-select.css';
+import axios from 'axios';
 
 const props = defineProps({
     rapat: Object,
@@ -45,6 +46,102 @@ const closeQrModal = () => {
     showQrModal.value = false;
 };
 
+const printQr = () => {
+    const rapatName = props.rapat?.nama_kegiatan || 'Rapat';
+    const rapatTime = `${props.rapat?.tanggal} ${props.rapat?.pukul} WIB`;
+    const qrValue = publicUrl.value;
+    
+    setTimeout(() => {
+        const qrCanvas = document.querySelector('.qr-modal-canvas');
+        let qrImage = '';
+        
+        if (qrCanvas && qrCanvas.tagName === 'CANVAS') {
+            qrImage = qrCanvas.toDataURL();
+        } else if (qrCanvas) {
+            const svgData = new XMLSerializer().serializeToString(qrCanvas);
+            const canvas = document.createElement('canvas');
+            const ctx = canvas.getContext('2d');
+            const img = new Image();
+            img.onload = function() {
+                qrImage = canvas.toDataURL();
+                openPrintWindow(qrImage, rapatName, rapatTime);
+            };
+            img.src = 'data:image/svg+xml;base64,' + btoa(svgData);
+        } else {
+            qrImage = `https://api.qrserver.com/v1/create-qr-code/?size=250x250&data=${encodeURIComponent(qrValue)}`;
+            openPrintWindow(qrImage, rapatName, rapatTime);
+        }
+        
+        if (qrImage && qrImage.startsWith('data:')) {
+            openPrintWindow(qrImage, rapatName, rapatTime);
+        }
+    }, 100);
+};
+
+const openPrintWindow = (qrImage, rapatName, rapatTime) => {
+    const printWindow = window.open('', '_blank');
+    const htmlContent = `
+        <!DOCTYPE html>
+        <html>
+        <head>
+            <title>QR Code - ${rapatName}</title>
+            <style>
+                body {
+                    margin: 0;
+                    padding: 20px;
+                    font-family: Arial, sans-serif;
+                    display: flex;
+                    justify-content: center;
+                    align-items: center;
+                    min-height: 100vh;
+                    background: white;
+                }
+                .container {
+                    text-align: center;
+                    border: 2px solid #333;
+                    padding: 40px;
+                    border-radius: 10px;
+                    max-width: 450px;
+                }
+                h2 { color: #333; margin-top: 0; font-size: 24px; }
+                .info { color: #666; font-size: 16px; margin: 10px 0; }
+                .qr-container {
+                    margin: 30px 0;
+                    background: white;
+                    padding: 20px;
+                    border: 2px solid #ddd;
+                    display: inline-block;
+                }
+                img { width: 280px; height: 280px; }
+                .instruction { 
+                    font-size: 14px; 
+                    color: #333; 
+                    margin-top: 20px;
+                    font-weight: bold;
+                }
+                @media print {
+                    body { padding: 0; margin: 0; }
+                    .container { border: 2px solid #333; }
+                }
+            </style>
+        </head>
+        <body>
+            <div class="container">
+                <h2>${rapatName}</h2>
+                <div class="info">${rapatTime}</div>
+                <div class="qr-container">
+                    <img src="${qrImage}" alt="QR Code" />
+                </div>
+                <p class="instruction">📱 Scan QR Code dengan kamera HP Anda untuk mengisi daftar hadir</p>
+            </div>
+        </body>
+        </html>
+    `;
+    printWindow.document.write(htmlContent);
+    printWindow.document.close();
+    setTimeout(() => printWindow.print(), 500);
+};
+
 // Form menggunakan useForm
 const form = useForm({
     tipe_peserta: 'internal',
@@ -56,6 +153,7 @@ const form = useForm({
     email: '',
     signature: ''
 });
+const isSearchingNip = ref(false);
 
 const openModal = async () => {
     form.reset();
@@ -83,6 +181,33 @@ const handleTipePesertaChange = () => {
     form.nip = '';
     form.id_dinas = '';
     form.nama_external = '';
+};
+
+const searchPegawai = async () => {
+    if (!form.nip || form.nip.length < 5) return;
+    
+    isSearchingNip.value = true;
+    try {
+        const response = await axios.get(route('api.pegawai', form.nip));
+        if (response.data && response.data.success) {
+            let pegawai = response.data.data;
+            if (Array.isArray(pegawai)) pegawai = pegawai[0];
+            
+            if (pegawai && pegawai.data) pegawai = pegawai.data;
+            if (pegawai && pegawai.data) pegawai = pegawai.data;
+
+            if (pegawai) {
+                if (pegawai.nama || pegawai.nama_pegawai || pegawai.nama_lengkap) {
+                    form.nama = (pegawai.nama || pegawai.nama_pegawai || pegawai.nama_lengkap).trim();
+                }
+                if (pegawai.email && !form.email) form.email = pegawai.email;
+            }
+        }
+    } catch (error) {
+        console.error("Gagal mengambil data pegawai", error);
+    } finally {
+        isSearchingNip.value = false;
+    }
 };
 
 const submitForm = () => {
@@ -136,6 +261,12 @@ const submitForm = () => {
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z" />
                         </svg>
                         Cetak
+                    </a>
+                    <a :href="route('rapat.public.show', rapat.id)" target="_blank" class="bg-green-100 border border-green-300 text-green-700 hover:bg-green-200 font-bold py-2.5 px-5 rounded-lg transition-colors shadow-sm text-sm whitespace-nowrap flex items-center gap-2">
+                        <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
+                        </svg>
+                        Buka Form Publik
                     </a>
                     <button @click="openQrModal" class="bg-white border border-gray-300 text-gray-700 hover:bg-gray-50 font-bold py-2.5 px-5 rounded-lg transition-colors shadow-sm text-sm whitespace-nowrap flex items-center gap-2">
                         <svg class="w-5 h-5 text-gray-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -215,13 +346,18 @@ const submitForm = () => {
                     </div>
 
                     <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div v-if="form.tipe_peserta === 'internal'">
+                            <label class="block text-sm font-medium text-gray-700 mb-1">NIP Karyawan</label>
+                    <div class="relative">
+                        <input v-model="form.nip" @blur="searchPegawai" type="text" placeholder="Ketik NIP dan tekan Tab" class="w-full px-3 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-600" />
+                        <div v-if="isSearchingNip" class="absolute right-3 top-3">
+                            <svg class="animate-spin h-5 w-5 text-indigo-600" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z"></path></svg>
+                        </div>
+                    </div>
+                        </div>
                         <div>
                             <label class="block text-sm font-medium text-gray-700 mb-1">Nama Lengkap <span class="text-red-500">*</span></label>
                             <input v-model="form.nama" type="text" class="w-full px-3 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-600" required />
-                        </div>
-                        <div v-if="form.tipe_peserta === 'internal'">
-                            <label class="block text-sm font-medium text-gray-700 mb-1">NIP Karyawan</label>
-                            <input v-model="form.nip" type="text" class="w-full px-3 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-600" />
                         </div>
                     </div>
 
@@ -288,7 +424,7 @@ const submitForm = () => {
                 
                 <div class="flex justify-center mb-6">
                     <div class="bg-white p-4 rounded-xl border-4 border-gray-100 shadow-sm inline-block">
-                        <QrcodeVue v-if="publicUrl" :value="publicUrl" :size="250" level="H" />
+                        <QrcodeVue v-if="publicUrl" :value="publicUrl" :size="250" level="H" class="qr-modal-canvas" />
                     </div>
                 </div>
 
@@ -296,9 +432,17 @@ const submitForm = () => {
                     <span class="text-xs text-gray-600 truncate whitespace-nowrap">{{ publicUrl }}</span>
                 </div>
 
-                <button @click="closeQrModal" class="w-full py-3 bg-gray-100 hover:bg-gray-200 text-gray-800 rounded-xl font-bold transition-colors">
-                    Tutup
-                </button>
+                <div class="space-y-2">
+                    <button @click="printQr" class="w-full py-3 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl font-bold transition-colors flex items-center justify-center gap-2">
+                        <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z" />
+                        </svg>
+                        Cetak QR Code
+                    </button>
+                    <button @click="closeQrModal" class="w-full py-3 bg-gray-100 hover:bg-gray-200 text-gray-800 rounded-xl font-bold transition-colors">
+                        Tutup
+                    </button>
+                </div>
             </div>
         </div>
     </AuthenticatedLayout>

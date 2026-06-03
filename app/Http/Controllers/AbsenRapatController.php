@@ -7,6 +7,7 @@ use App\Models\DaftarHadir;
 use App\Models\Dinas;
 use App\Support\RecordOwnership;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Http;
 
 use Inertia\Inertia;
 
@@ -14,19 +15,22 @@ class AbsenRapatController extends Controller
 {
     public function index(Request $request)
     {
-        // Fitur Filter Berdasarkan Tanggal
         $query = AbsenRapat::query();
-        RecordOwnership::scopeOwned($query, $request->user());
+        $canViewAllRapat = RecordOwnership::canAccessAllRecords($request->user());
 
         if ($request->has('tanggal') && $request->tanggal != '') {
             $query->whereDate('tanggal', $request->tanggal);
+        } elseif (!$canViewAllRapat) {
+            // Tampilkan rapat hari ini secara default untuk user biasa.
+            $query->whereDate('tanggal', today());
         }
 
         $rapats = $query->latest('tanggal')->get();
 
         return Inertia::render('AbsenRapat/Index', [
             'rapats' => $rapats,
-            'filters' => $request->only(['tanggal']) // Kirim filter aktif ke frontend
+            'filters' => $request->only(['tanggal']),
+            'canViewAll' => $canViewAllRapat,
         ]);
     }
 
@@ -63,7 +67,6 @@ class AbsenRapatController extends Controller
     public function show(Request $request, $id)
     {
         $rapat = AbsenRapat::findOrFail($id);
-        RecordOwnership::abortUnlessOwned($rapat, $request->user());
         $kehadiran = DaftarHadir::where('absen_rapat_id', $id)->latest()->get();
         
         // Ambil semua data dinas dari tabel
@@ -79,7 +82,6 @@ class AbsenRapatController extends Controller
     public function print(Request $request, $id)
     {
         $rapat = AbsenRapat::findOrFail($id);
-        RecordOwnership::abortUnlessOwned($rapat, $request->user());
         
         $kehadiran = DaftarHadir::with('dinas')->where('absen_rapat_id', $id)->orderBy('created_at', 'asc')->get();
         
@@ -88,6 +90,43 @@ class AbsenRapatController extends Controller
         return view('print.rapat', compact('rapat', 'kehadiran', 'instansi'));
     }
     
+    // Metode untuk menampilkan list rapat aktif (publik - tanpa login)
+    public function publicList()
+    {
+        $now = now();
+        $today = $now->toDateString();
+        
+        // Hanya tampilkan rapat hari ini yang masih aktif (mulai <= sekarang < mulai + 4 jam)
+        $rapats = AbsenRapat::whereDate('tanggal', $today)
+            ->get()
+            ->filter(function ($rapat) use ($now) {
+                try {
+                    // Parse tanggal (format: Y-m-d) dan pukul (format: H:i atau H:i:s)
+                    $timeStr = $rapat->pukul;
+                    if (strlen($timeStr) == 5) { // H:i format
+                        $timeStr .= ':00'; // add seconds
+                    }
+                    
+                    $startTime = \Carbon\Carbon::createFromFormat(
+                        'Y-m-d H:i:s',
+                        $rapat->tanggal . ' ' . $timeStr
+                    );
+                    $endTime = $startTime->copy()->addHours(4);
+                    
+                    // Rapat aktif jika: startTime <= now < endTime
+                    return $now->between($startTime, $endTime);
+                } catch (\Exception $e) {
+                    return false;
+                }
+            })
+            ->sortBy('pukul')
+            ->values();
+
+        return Inertia::render('AbsenRapat/PublicList', [
+            'rapats' => $rapats,
+        ]);
+    }
+
     // Metode untuk menampilkan form absen publik
     public function publicShow($id)
     {
@@ -107,6 +146,7 @@ class AbsenRapatController extends Controller
             'tipe_peserta'  => 'required|in:internal,eksternal',
             'nip'           => 'nullable|string',
             'nama'          => 'required|string|max:191',
+            'jenis_kelamin' => 'required|in:laki-laki,perempuan',
             'id_dinas'      => 'nullable|integer', 
             'nama_external' => 'nullable|string|max:191',
             'telp'          => 'required|string|max:191',
@@ -128,6 +168,7 @@ class AbsenRapatController extends Controller
             'tipe_peserta'  => 'required|in:internal,eksternal',
             'nip'           => 'nullable|string',
             'nama'          => 'required|string|max:191',
+            'jenis_kelamin' => 'required|in:laki-laki,perempuan',
             
             // id_dinas harus nullable dan berupa integer (sesuai ID dari dropdown)
             'id_dinas'      => 'nullable|integer', 
@@ -143,5 +184,37 @@ class AbsenRapatController extends Controller
         $kehadiran = DaftarHadir::create($validated);
 
         return redirect()->route('kasir.index', ['id_peserta' => $kehadiran->id])->with('success', 'Kehadiran berhasil dicatat.');
+    }
+
+    // Endpoint API untuk mengambil Data Pegawai dari SIMPEG
+    public function getPegawaiSimpeg($nip)
+    {
+        try {
+            // 1. Dapatkan Token API
+            $tokenResponse = Http::asForm()->post("https://restsimpeg.kotabogor.go.id/v3/api/auth/gettokenapps", [
+                'username' => 'setda@kotabogor.go.id',
+                'passkey'  => 'SetdaBogor6202!',
+            ]);
+
+            $token = $tokenResponse->json('token') ?? $tokenResponse->json('access_token');
+            
+            if (!$token) {
+                return response()->json(['success' => false, 'message' => 'Gagal mendapatkan token dari SIMPEG.']);
+            }
+
+            // 2. Ambil Data Pegawai
+            $pegawaiResponse = Http::withToken($token)->get("https://restsimpeg.kotabogor.go.id/v3/setda/getpegawai/{$nip}");
+
+            if ($pegawaiResponse->successful() && $pegawaiResponse->json()) {
+                return response()->json([
+                    'success' => true,
+                    'data' => $pegawaiResponse->json()
+                ]);
+            }
+
+            return response()->json(['success' => false, 'message' => 'Data pegawai tidak ditemukan.']);
+        } catch (\Exception $e) {
+            return response()->json(['success' => false, 'message' => $e->getMessage()]);
+        }
     }
 }

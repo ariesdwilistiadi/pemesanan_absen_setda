@@ -1,5 +1,6 @@
 <script setup>
 import { Head, useForm } from '@inertiajs/vue3';
+import { Inertia } from '@inertiajs/inertia';
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout.vue';
 import { ref } from 'vue';
 
@@ -16,13 +17,17 @@ const form = useForm({
     nip_kepala: props.instansi.nip_kepala || '',
     jabatan_kepala: props.instansi.jabatan_kepala || '',
     logo: null,
+    qris_image: null,
 });
 
 const logoPreview = ref(props.instansi.logo ? '/storage/' + props.instansi.logo : null);
+const qrisPreview = ref(props.instansi.qris_image ? '/storage/' + props.instansi.qris_image : null);
 
 const handleLogoChange = (e) => {
     const file = e.target.files[0];
     form.logo = file;
+
+    console.log('handleLogoChange logo file:', file);
 
     if (file) {
         logoPreview.value = URL.createObjectURL(file);
@@ -31,9 +36,32 @@ const handleLogoChange = (e) => {
     }
 };
 
+const handleQrisChange = (e) => {
+    const file = e.target.files[0];
+    form.qris_image = file;
+
+    if (file) {
+        qrisPreview.value = URL.createObjectURL(file);
+    } else {
+        qrisPreview.value = props.instansi.qris_image ? '/storage/' + props.instansi.qris_image : null;
+    }
+};
+
 const submit = () => {
-    // Karena ada file upload, methodnya tetap post tetapi ada form method spoofing jika perlu (disini pakai route update biasa dengan form data)
-    form.post(route('instansi.update'), {
+    console.log('Submitting form, logo is File?', form.logo instanceof File, 'logo:', form.logo);
+
+    const payload = new FormData();
+    payload.append('pemerintah', form.pemerintah || '');
+    payload.append('nama_instansi', form.nama_instansi || '');
+    payload.append('alamat', form.alamat || '');
+    payload.append('kontak', form.kontak || '');
+    payload.append('nama_kepala', form.nama_kepala || '');
+    payload.append('nip_kepala', form.nip_kepala || '');
+    payload.append('jabatan_kepala', form.jabatan_kepala || '');
+    if (form.logo instanceof File) payload.append('logo', form.logo);
+    if (form.qris_image instanceof File) payload.append('qris_image', form.qris_image);
+
+    Inertia.post(route('instansi.update'), payload, {
         preserveScroll: true,
         onSuccess: () => {
             alert('Profil berhasil diperbarui!');
@@ -113,6 +141,18 @@ const submit = () => {
                                 <img :src="logoPreview" alt="Logo Preview" class="h-24 object-contain">
                             </div>
                             <input type="file" @change="handleLogoChange" accept="image/*" class="w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-indigo-50 file:text-indigo-700 hover:file:bg-indigo-100">
+                        </div>
+
+                        <div class="border-b pb-4 mb-4 mt-8">
+                            <h3 class="text-lg font-bold text-gray-900">QRIS Pembayaran</h3>
+                            <p class="text-sm text-gray-500">Gambar QRIS ini akan digunakan di halaman kasir untuk pembayaran.</p>
+                        </div>
+                        
+                        <div>
+                            <div v-if="qrisPreview" class="mb-4">
+                                <img :src="qrisPreview" alt="QRIS Preview" class="h-48 object-contain">
+                            </div>
+                            <input type="file" @change="handleQrisChange" accept="image/*" class="w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-indigo-50 file:text-indigo-700 hover:file:bg-indigo-100">
                         </div>
 
                         <div class="pt-6 flex justify-end">

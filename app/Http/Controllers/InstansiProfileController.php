@@ -6,6 +6,7 @@ use App\Models\InstansiProfile;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Facades\Log;
 
 class InstansiProfileController extends Controller
 {
@@ -23,6 +24,13 @@ class InstansiProfileController extends Controller
         // Mengambil instance atau membuat baru
         $instansi = InstansiProfile::firstOrCreate(['id' => 1]);
 
+        // Log untuk debugging upload
+        Log::info('InstansiProfileController@update called', [
+            'has_logo' => $request->hasFile('logo'),
+            'has_qris_image' => $request->hasFile('qris_image'),
+            'files' => array_keys($request->files->all()),
+        ]);
+
         // Validasi input
         $validated = $request->validate([
             'pemerintah' => 'required|string|max:255',
@@ -33,6 +41,7 @@ class InstansiProfileController extends Controller
             'nip_kepala' => 'nullable|string|max:255',
             'jabatan_kepala' => 'required|string|max:255',
             'logo' => 'nullable|image|mimes:jpeg,png,jpg,gif|max:2048', 
+            'qris_image' => 'nullable|image|mimes:jpeg,png,jpg,gif|max:2048', 
         ]);
 
         // Menangani File Logo
@@ -48,6 +57,16 @@ class InstansiProfileController extends Controller
             
             // Update data array dengan path file yang baru
             $validated['logo'] = $path;
+        }
+
+        // Menangani File QRIS
+        if ($request->hasFile('qris_image')) {
+            if ($instansi->qris_image && Storage::disk('public')->exists($instansi->qris_image)) {
+                Storage::disk('public')->delete($instansi->qris_image);
+            }
+
+            $qrisPath = $request->file('qris_image')->store('instansi', 'public');
+            $validated['qris_image'] = $qrisPath;
         }
 
         // Simpan perubahan ke database
