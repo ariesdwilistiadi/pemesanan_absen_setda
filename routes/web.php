@@ -7,8 +7,8 @@ use App\Http\Controllers\KasirController;
 use App\Http\Controllers\MenuController;
 use App\Http\Controllers\PermissionController;
 use App\Http\Controllers\ProdukEksternalController;
-use App\Http\Controllers\PeminjamanBayarController;
-use App\Http\Controllers\PeminjamanController;
+use App\Http\Controllers\PinjamanBayarController;
+use App\Http\Controllers\PinjamanController;
 use App\Http\Controllers\PenjualanController;
 use App\Http\Controllers\ProdukController;
 use App\Http\Controllers\ProfileController;
@@ -55,6 +55,7 @@ Route::get('/api/produk-eksternal', [ProdukEksternalController::class, 'index'])
 Route::post('/api/produk-eksternal/refresh', [ProdukEksternalController::class, 'refreshToken'])->name('produk-eksternal.refresh');
 Route::get('/api/produk-eksternal/test', [ProdukEksternalController::class, 'testConnection'])->name('produk-eksternal.test');
 Route::get('/api/produk-eksternal/penjualan', [ProdukEksternalController::class, 'penjualan'])->name('produk-eksternal.penjualan');
+Route::post('/api/produk-eksternal/record-penjualan', [ProdukEksternalController::class, 'recordPenjualan'])->name('produk-eksternal.record-penjualan');
 
 /*
 |--------------------------------------------------------------------------

@@ -571,7 +571,19 @@ const deleteTransaksi = (id) => {
                                 </div>
 							</div>
 
-							<div v-if="currentProduks.length === 0 && !isLoadingExternal && !externalError" class="text-center py-20 text-slate-400">
+							<!-- Empty State for External (Produk Belum Tersedia) -->
+							<div v-if="activeTab === 'external' && !isLoadingExternal && !externalError && filteredProduksExternal.length === 0" class="text-center py-20">
+								<div class="mb-4">
+									<svg class="w-16 h-16 mx-auto text-slate-300" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+										<path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" />
+									</svg>
+								</div>
+								<p class="text-slate-500 font-semibold text-lg mb-2">Daftar menu belum tersedia</p>
+								<p class="text-slate-400 text-sm">Menu dari server external belum ada untuk saat ini.</p>
+							</div>
+
+							<!-- Empty State for Local -->
+							<div v-else-if="activeTab === 'lokal' && !isLoadingExternal && filteredProduksLokal.length === 0" class="text-center py-20 text-slate-400">
 								<p class="font-bold">Belum ada produk tersedia.</p>
 							</div>
 						</div>

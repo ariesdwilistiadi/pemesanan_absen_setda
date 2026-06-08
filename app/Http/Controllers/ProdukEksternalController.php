@@ -90,6 +90,16 @@ class ProdukEksternalController extends Controller
             if ($response->successful()) {
                 $data = $response->json();
 
+                // Handle null response
+                if ($data === null) {
+                    Log::warning('External API returned null response');
+                    return response()->json([
+                        'success' => false,
+                        'message' => 'Server external mengembalikan data kosong.',
+                        'produks' => []
+                    ]);
+                }
+
                 // Handle different response structures
                 if (is_array($data) && isset($data[0])) {
                     // Data adalah array langsung
@@ -124,7 +134,7 @@ class ProdukEksternalController extends Controller
                     'produks' => $produks,
                     'debug' => [
                         'items_count' => count($items),
-                        'response_structure' => array_keys($data)
+                        'response_structure' => is_array($data) ? array_keys($data) : 'null'
                     ]
                 ]);
             }
@@ -296,6 +306,78 @@ class ProdukEksternalController extends Controller
         return response()->json([
             'success' => false,
             'message' => 'Gagal refresh token. Server mungkin sedang down.'
+        ]);
+    }
+
+    /**
+     * Catat penjualan ke API external
+     */
+    public function recordPenjualan(Request $request)
+    {
+        $token = $this->getToken();
+
+        if (!$token) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Gagal login ke server external.'
+            ]);
+        }
+
+        $validated = $request->validate([
+            'items' => 'required|array|min:1',
+            'items.*.produk_id' => 'required',
+            'items.*.nama_produk' => 'required|string',
+            'items.*.jumlah' => 'required|integer|min:1',
+            'items.*.harga_satuan' => 'required|numeric|min:0',
+            'items.*.subtotal' => 'required|numeric|min:0',
+            'no_transaksi' => 'nullable|string',
+            'nama_pembeli' => 'nullable|string',
+            'metode_pembayaran' => 'nullable|string',
+            'tanggal_transaksi' => 'nullable|date',
+        ]);
+
+        try {
+            $response = Http::withToken($token)
+                ->timeout(30)
+                ->withOptions([
+                    'verify' => false,
+                ])
+                ->post($this->apiBaseUrl . '/sekda/penjualan', [
+                    'items' => $validated['items'],
+                    'no_transaksi' => $validated['no_transaksi'] ?? null,
+                    'nama_pembeli' => $validated['nama_pembeli'] ?? null,
+                    'metode_pembayaran' => $validated['metode_pembayaran'] ?? 'qris',
+                    'tanggal_transaksi' => $validated['tanggal_transaksi'] ?? now()->toDateTimeString(),
+                ]);
+
+            Log::info('External API Record Penjualan response status: ' . $response->status());
+
+            if ($response->successful()) {
+                return response()->json([
+                    'success' => true,
+                    'message' => 'Penjualan external berhasil dicatat',
+                    'data' => $response->json()
+                ]);
+            }
+
+            // Token expired
+            if ($response->status() === 401) {
+                Cache::forget('external_api_token');
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Sesi external habis.'
+                ]);
+            }
+
+            Log::error('External API Record Penjualan error: ' . $response->status() . ' - ' . $response->body());
+
+        } catch (\Exception $e) {
+            Log::error('Record penjualan external error: ' . $e->getMessage());
+        }
+
+        return response()->json([
+            'success' => false,
+            'message' => 'Gagal mencatat penjualan ke server external.'
         ]);
     }
 

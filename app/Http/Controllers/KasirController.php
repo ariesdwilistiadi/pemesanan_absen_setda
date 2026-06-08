@@ -16,6 +16,7 @@ use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
 
 use App\Models\InstansiProfile;
+use Illuminate\Support\Facades\Http;
 
 class KasirController extends Controller
 {
@@ -89,82 +90,131 @@ class KasirController extends Controller
             'cart.*.sumber' => 'nullable|string'
         ]);
 
-        $totalItem = 0;
-        $totalHarga = 0;
+        // Pisahkan item berdasarkan sumber: lokal vs external
+        $cartItems = collect($validated['cart']);
+        $localItems = $cartItems->where('sumber', 'lokal');
+        $externalItems = $cartItems->where('sumber', 'external');
 
-        foreach ($validated['cart'] as $item) {
-            $totalItem += $item['jumlah'];
-            $totalHarga += ($item['jumlah'] * $item['harga_jual']);
-        }
+        // Hitung total per sumber
+        $totalLocal = $localItems->sum(fn($item) => $item['jumlah'] * $item['harga_jual']);
+        $totalExternal = $externalItems->sum(fn($item) => $item['jumlah'] * $item['harga_jual']);
+        $totalItem = $cartItems->sum('jumlah');
+        $totalHarga = $totalLocal + $totalExternal;
 
         // Validate enough payment for cash
         if ($validated['metode_pembayaran'] === 'cash' && $validated['jumlah_bayar'] < $totalHarga) {
             return back()->withErrors(['jumlah_bayar' => 'Jumlah bayar kurang dari total harga.']);
         }
 
-        // Jika total = 0, tidak perlu print struk (produk gratis semua)
-        $printId = null;
-
         $kembalian = $validated['metode_pembayaran'] === 'cash' ? ($validated['jumlah_bayar'] - $totalHarga) : 0;
         if ($kembalian < 0) $kembalian = 0;
 
         $noTransaksi = 'TRX-' . date('Ymd') . '-' . strtoupper(Str::random(6));
+        $printId = null;
+        $externalSuccess = true;
+        $externalMessage = '';
 
-        $header = TransaksiHeader::create([
-            'no_transaksi' => $noTransaksi,
-            'id_absen_rapats' => $validated['id_absen_rapats'],
-            'nip' => $validated['nip'] ?? null,
-            'nama' => $validated['nama'],
-            'id_ruangan' => $validated['id_ruangan'] ?? null,
-            'nomor_meja' => $validated['nomor_meja'] ?? null,
-            'tanggal_transaksi' => now(),
-            'total_item' => $totalItem,
-            'total_harga' => $totalHarga,
-            'keterangan' => $validated['keterangan'] ?? null,
-            'status' => 'pending',
-            'metode_pembayaran' => $validated['metode_pembayaran'],
-            'jumlah_bayar' => $validated['jumlah_bayar'],
-            'kembalian' => $kembalian
-        ] + [
-            'owner_user_id' => $request->user()?->id,
-        ]);
-
-        foreach ($validated['cart'] as $item) {
-            // Untuk produk external, produk_id bisa null
-            $produkId = ($item['sumber'] ?? 'lokal') === 'external' ? null : $item['id'];
-
-            TransaksiDetail::create([
-                'transaksi_header_id' => $header->id,
-                'produk_id' => $produkId,
-                'nama_produk_external' => ($item['sumber'] ?? 'lokal') === 'external' ? $item['nama_barang'] : null,
-                'jumlah' => $item['jumlah'],
-                'harga_satuan' => $item['harga_jual'],
-                'subtotal' => $item['jumlah'] * $item['harga_jual']
+        // =====================================================
+        // SIMPAN ITEM LOKAL KE DATABASE LOKAL
+        // =====================================================
+        if ($localItems->isNotEmpty()) {
+            $header = TransaksiHeader::create([
+                'no_transaksi' => $noTransaksi,
+                'id_absen_rapats' => $validated['id_absen_rapats'],
+                'nip' => $validated['nip'] ?? null,
+                'nama' => $validated['nama'],
+                'id_ruangan' => $validated['id_ruangan'] ?? null,
+                'nomor_meja' => $validated['nomor_meja'] ?? null,
+                'tanggal_transaksi' => now(),
+                'total_item' => $totalItem,
+                'total_harga' => $totalHarga,
+                'keterangan' => $validated['keterangan'] ?? null,
+                'status' => 'pending',
+                'metode_pembayaran' => $validated['metode_pembayaran'],
+                'jumlah_bayar' => $validated['jumlah_bayar'],
+                'kembalian' => $kembalian
+            ] + [
+                'owner_user_id' => $request->user()?->id,
             ]);
 
-            // Update stok produk hanya untuk produk lokal
-            if (($item['sumber'] ?? 'lokal') === 'lokal') {
+            foreach ($localItems as $item) {
+                TransaksiDetail::create([
+                    'transaksi_header_id' => $header->id,
+                    'produk_id' => $item['id'],
+                    'nama_produk_external' => null,
+                    'jumlah' => $item['jumlah'],
+                    'harga_satuan' => $item['harga_jual'],
+                    'subtotal' => $item['jumlah'] * $item['harga_jual']
+                ]);
+
+                // Update stok produk lokal
                 $produk = Produk::find($item['id']);
                 if ($produk) {
                     $produk->stok -= $item['jumlah'];
                     $produk->save();
                 }
             }
+
+            // Load relasi details untuk broadcast
+            $header->load('details.produk');
+
+            // Broadcast event untuk real-time
+            broadcast(new PesananBaruCreated($header))->toOthers();
+
+            if ($totalHarga > 0) {
+                $printId = $header->id;
+            }
         }
 
-        // Load relasi details untuk broadcast
-        $header->load('details.produk');
+        // =====================================================
+        // SIMPAN ITEM EXTERNAL KE API EXTERNAL
+        // =====================================================
+        if ($externalItems->isNotEmpty()) {
+            try {
+                $externalPayload = [
+                    'items' => $externalItems->map(fn($item) => [
+                        'produk_id' => $item['id'],
+                        'nama_produk' => $item['nama_barang'] ?? 'Produk External',
+                        'jumlah' => $item['jumlah'],
+                        'harga_satuan' => $item['harga_jual'],
+                        'subtotal' => $item['jumlah'] * $item['harga_jual'],
+                    ])->values()->all(),
+                    'no_transaksi' => $noTransaksi,
+                    'nama_pembeli' => $validated['nama'],
+                    'metode_pembayaran' => $validated['metode_pembayaran'],
+                    'tanggal_transaksi' => now()->toDateTimeString(),
+                ];
 
-        // Broadcast event untuk real-time
-        broadcast(new PesananBaruCreated($header))->toOthers();
+                $externalResponse = Http::timeout(30)
+                    ->withOptions(['verify' => false])
+                    ->asJson()
+                    ->post('https://labs-koperasidharmawanita.kotabogor.go.id/api/sekda/penjualan', $externalPayload);
 
-        // Set print_id hanya jika ada item dengan harga > 0
-        if ($totalHarga > 0) {
-            $printId = $header->id;
+                if (!$externalResponse->successful()) {
+                    $externalSuccess = false;
+                    $externalMessage = 'Gagal menyimpan transaksi ke server external (HTTP ' . $externalResponse->status() . ')';
+                    Log::error('External transaction failed: ' . $externalResponse->body());
+                }
+            } catch (\Exception $e) {
+                $externalSuccess = false;
+                $externalMessage = 'Gagal menyimpan transaksi ke server external: ' . $e->getMessage();
+                Log::error('External transaction exception: ' . $e->getMessage());
+            }
+        }
+
+        // Set print_id hanya jika ada item lokal dengan harga > 0
+        if ($totalLocal > 0) {
+            $printId = $header->id ?? null;
+        }
+
+        // Prepare flash message
+        $successMessage = 'Transaksi berhasil disimpan. No: ' . $noTransaksi;
+        if (!$externalSuccess) {
+            $successMessage .= ' (Catatan: ' . $externalMessage . ')';
         }
 
         return redirect()->back()
-            ->with('success', 'Transaksi berhasil disimpan dengan No: ' . $noTransaksi)
+            ->with('success', $successMessage)
             ->with('print_id', $printId);
     }
 
