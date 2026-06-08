@@ -76,16 +76,25 @@
         </div>
 
         <table class="mb-2">
-            @foreach($transaksi->details as $item)
+            @forelse($transaksi->details as $item)
             <tr>
-                <td colspan="3" class="item-name font-bold">{{ $item->produk->nama_barang ?? 'Produk Dihapus' }}</td>
+                <td colspan="3" class="item-name font-bold">
+                    {{ $item->nama_produk_external ?? $item->produk->nama_barang ?? 'Produk Dihapus' }}
+                    @if($item->nama_produk_external)
+                        <span style="font-size:8px; background:#28a745; color:#fff; padding:1px 3px; border-radius:2px;">EXT</span>
+                    @endif
+                </td>
             </tr>
             <tr>
                 <td width="30%">{{ $item->jumlah }} x</td>
-                <td width="35%">{{ number_format($item->harga_satuan, 0, ',', '.') }}</td>
-                <td width="35%" class="text-right">{{ number_format($item->subtotal, 0, ',', '.') }}</td>
+                <td width="35%">{{ $item->harga_satuan > 0 ? number_format($item->harga_satuan, 0, ',', '.') : 'FREE' }}</td>
+                <td width="35%" class="text-right">{{ $item->subtotal > 0 ? number_format($item->subtotal, 0, ',', '.') : '-' }}</td>
             </tr>
-            @endforeach
+            @empty
+            <tr>
+                <td colspan="3" class="text-center">Tidak ada item</td>
+            </tr>
+            @endforelse
         </table>
 
         <div class="border-top py-1">

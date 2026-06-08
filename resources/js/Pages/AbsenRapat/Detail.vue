@@ -253,7 +253,13 @@ const submitForm = () => {
                 <div>
                     <Link :href="route('rapat.index')" class="text-sm text-indigo-600 hover:text-indigo-800 font-medium mb-1 inline-block">&larr; Kembali ke Daftar Rapat</Link>
                     <h2 class="font-bold text-2xl text-gray-800 leading-tight">{{ rapat.nama_kegiatan }}</h2>
-                    <p class="text-sm text-gray-500 mt-1">Tanggal: <span class="font-semibold">{{ rapat.tanggal }}</span> | Pukul: <span class="font-semibold">{{ rapat.pukul }} WIB</span></p>
+                    <p class="text-sm text-gray-500 mt-1">
+                        Tanggal: <span class="font-semibold">{{ rapat.tanggal }}</span> |
+                        Pukul: <span class="font-semibold">{{ rapat.pukul }} WIB</span>
+                        <span v-if="rapat.ruangan"> |
+                            Ruangan: <span class="font-semibold text-purple-600">{{ rapat.ruangan.nama_ruangan }}</span>
+                        </span>
+                    </p>
                 </div>
                 <div class="flex gap-2">
                     <a :href="route('rapat.print', rapat.id)" target="_blank" class="bg-white border border-gray-300 text-gray-700 hover:bg-gray-50 font-bold py-2.5 px-5 rounded-lg transition-colors shadow-sm text-sm whitespace-nowrap flex items-center gap-2">

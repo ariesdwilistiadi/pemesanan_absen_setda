@@ -161,6 +161,11 @@
                 <td class="colon">:</td>
                 <td>{{ $rapat->pukul }} WIB s/d Selesai</td>
             </tr>
+            <tr>
+                <td class="label">Ruangan</td>
+                <td class="colon">:</td>
+                <td>{{ $rapat->ruangan ? $rapat->ruangan->nama_ruangan : '-' }}</td>
+            </tr>
         </table>
 
         <!-- Tabel Daftar Hadir -->

@@ -6,10 +6,13 @@ use App\Http\Controllers\DanaDkkController;
 use App\Http\Controllers\KasirController;
 use App\Http\Controllers\MenuController;
 use App\Http\Controllers\PermissionController;
-use App\Http\Controllers\PinjamanBayarController;
-use App\Http\Controllers\PinjamanController;
+use App\Http\Controllers\ProdukEksternalController;
+use App\Http\Controllers\PeminjamanBayarController;
+use App\Http\Controllers\PeminjamanController;
+use App\Http\Controllers\PenjualanController;
 use App\Http\Controllers\ProdukController;
 use App\Http\Controllers\ProfileController;
+use App\Http\Controllers\RuanganController;
 use App\Http\Controllers\UserController;
 use Illuminate\Foundation\Application;
 use Illuminate\Support\Facades\Route;
@@ -22,12 +25,12 @@ use Inertia\Inertia;
 */
 
 Route::get('/', function () {
-    return redirect()->away('https://labs-sapasekda.kotabogor.go.id/login');
+    return redirect()->away('http://localhost:8000/login');
 });
 
 Route::controller(KasirController::class)->group(function () {
    // Route::get('/kasir', 'index')->middleware('permission:view_kasir')->name('kasir.index');
-   Route::get('/kasir', 'index')->name('kasir.index'); 
+   Route::get('/kasir', 'index')->name('kasir.index');
    Route::get('/kasir/cari-peserta', 'cariPeserta')->name('kasir.cari-peserta');
     Route::post('/kasir', 'store')->middleware(['throttle:10,1'])->name('kasir.store');
     Route::delete('/kasir/{id}', 'destroy')->middleware(['permission:delete_kasir', 'throttle:10,1'])->name('kasir.destroy');
@@ -37,7 +40,28 @@ Route::controller(KasirController::class)->group(function () {
     Route::patch('/kasir/pesanan/{id}/status', 'updateStatus')->middleware('permission:edit_kasir')->name('kasir.update-status');
     Route::get('/kasir/laporan', 'laporan')->middleware('permission:view_kasir')->name('kasir.laporan');
     Route::get('/kasir/laporan-keuntungan', 'laporanKeuntungan')->middleware('permission:view_kasir')->name('kasir.laporan-keuntungan');
+
+    // Real-time endpoints
+    Route::get('/kasir/sse-pesanan', 'ssePesanan')->middleware('permission:view_kasir')->name('kasir.sse-pesanan');
+    Route::get('/kasir/cek-pesanan', 'cekPesananBaru')->middleware('permission:view_kasir')->name('kasir.cek-pesanan');
 });
+
+/*
+|--------------------------------------------------------------------------
+| Produk Eksternal API
+|--------------------------------------------------------------------------
+*/
+Route::get('/api/produk-eksternal', [ProdukEksternalController::class, 'index'])->name('produk-eksternal.index');
+Route::post('/api/produk-eksternal/refresh', [ProdukEksternalController::class, 'refreshToken'])->name('produk-eksternal.refresh');
+Route::get('/api/produk-eksternal/test', [ProdukEksternalController::class, 'testConnection'])->name('produk-eksternal.test');
+Route::get('/api/produk-eksternal/penjualan', [ProdukEksternalController::class, 'penjualan'])->name('produk-eksternal.penjualan');
+
+/*
+|--------------------------------------------------------------------------
+| Penjualan External Page
+|--------------------------------------------------------------------------
+*/
+Route::get('/penjualan-external', [PenjualanController::class, 'external'])->middleware('permission:view_kasir')->name('penjualan.external');
 
 Route::get('/rapat-public', [AbsenRapatController::class, 'publicList'])->name('rapat.public.list');
 Route::get('/rapat-public/{id}/absen', [AbsenRapatController::class, 'publicShow'])->name('rapat.public.show');
@@ -76,6 +100,19 @@ Route::middleware(['auth', 'verified', 'trusted.origin', 'session.timeout'])->gr
     Route::get('/rapat/{id}/cetak', [AbsenRapatController::class, 'print'])
         ->middleware('permission:view_rapat')
         ->name('rapat.print');
+
+    /*
+    |--------------------------------------------------------------------------
+    | Manajemen Ruangan
+    |--------------------------------------------------------------------------
+    */
+    Route::controller(RuanganController::class)->group(function () {
+        Route::get('/ruangans', 'index')->middleware('permission:view_ruangans')->name('ruangans.index');
+        Route::post('/ruangans', 'store')->middleware(['permission:create_ruangans', 'throttle:10,1'])->name('ruangans.store');
+        Route::put('/ruangans/{id}', 'update')->middleware(['permission:edit_ruangans', 'throttle:10,1'])->name('ruangans.update');
+        Route::delete('/ruangans/{id}', 'destroy')->middleware('permission:delete_ruangans')->name('ruangans.destroy');
+        Route::post('/ruangans/{id}/toggle', 'toggleActive')->middleware(['permission:edit_ruangans', 'throttle:10,1'])->name('ruangans.toggle');
+    });
 
     /*
     |--------------------------------------------------------------------------

@@ -22,4 +22,9 @@ class Ruangan extends Model
     {
         return $this->hasMany(TransaksiHeader::class, 'id_ruangan');
     }
+
+    public function absenRapats()
+    {
+        return $this->hasMany(AbsenRapat::class, 'ruangan_id');
+    }
 }

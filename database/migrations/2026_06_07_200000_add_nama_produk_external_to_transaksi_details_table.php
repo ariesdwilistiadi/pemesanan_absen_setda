@@ -11,12 +11,9 @@ return new class extends Migration
      */
     public function up(): void
     {
-       Schema::create('instansi_profiles', function (Blueprint $table) {
-        $table->id();
-        $table->string('logo')->nullable();
-        // Add any other necessary columns here
-        $table->timestamps();
-    });
+        Schema::table('transaksi_details', function (Blueprint $table) {
+            $table->string('nama_produk_external', 255)->nullable()->after('produk_id');
+        });
     }
 
     /**
@@ -24,8 +21,8 @@ return new class extends Migration
      */
     public function down(): void
     {
-        Schema::table('instansi_profiles', function (Blueprint $table) {
-            $table->dropColumn('qris_image');
+        Schema::table('transaksi_details', function (Blueprint $table) {
+            $table->dropColumn('nama_produk_external');
         });
     }
 };

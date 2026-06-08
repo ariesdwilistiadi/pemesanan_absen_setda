@@ -19,5 +19,14 @@ class AbsenRapat extends Model
         'tanggal',
         'pukul',
         'owner_user_id',
+        'ruangan_id',
     ];
+
+    /**
+     * Relasi ke ruangan rapat
+     */
+    public function ruangan()
+    {
+        return $this->belongsTo(\App\Models\Ruangan::class, 'ruangan_id');
+    }
 }

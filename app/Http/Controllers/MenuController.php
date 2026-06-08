@@ -20,7 +20,13 @@ class MenuController extends Controller
     public function index()
     {
         $catalog = app(RoutePermissionCatalog::class);
-        $catalog->syncPermissionsFromRoutes();
+        
+        try {
+            $catalog->syncPermissionsFromRoutes();
+        } catch (\Illuminate\Database\UniqueConstraintViolationException $e) {
+            // Abaikan atau log error duplicate entry agar halaman tidak crash
+            Log::warning('Duplicate permission found during route sync: ' . $e->getMessage());
+        }
 
         $menus = Menu::whereNull('parent_id')
             ->with(['children' => function ($query) {

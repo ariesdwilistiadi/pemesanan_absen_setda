@@ -1,18 +1,14 @@
 <script setup>
-import { ref, computed, nextTick, onMounted } from 'vue'; // PERBAIKAN: Tambah computed
+import { ref, computed, nextTick, onMounted } from 'vue';
 import { Head, useForm, usePage } from '@inertiajs/vue3';
 import { VueSignaturePad } from 'vue-signature-pad';
-import vSelect from 'vue-select';
-import 'vue-select/dist/vue-select.css';
 import axios from 'axios';
 
 // --- LOGIKA MATH CAPTCHA ---
-// Generate 2 angka acak antara 1 sampai 10
 const captchaNum1 = ref(Math.floor(Math.random() * 10) + 1);
 const captchaNum2 = ref(Math.floor(Math.random() * 10) + 1);
 const captchaAnswer = ref('');
 
-// Cek apakah jawaban user benar
 const isCaptchaValid = computed(() => {
     return parseInt(captchaAnswer.value) === (captchaNum1.value + captchaNum2.value);
 });
@@ -27,6 +23,7 @@ const props = defineProps({
 
 const signaturePad = ref(null);
 const isSearchingNip = ref(false);
+const formError = ref('');
 
 const form = useForm({
     tipe_peserta: 'internal',
@@ -34,7 +31,9 @@ const form = useForm({
     nama: '',
     jenis_kelamin: '',
     id_dinas: '',
-    nama_external: '',
+    jabatan: '',
+    nama_dinas: '',      // Untuk input manual nama dinas
+    nama_external: '',   // Untuk eksternal
     telp: '',
     email: '',
     signature: ''
@@ -56,19 +55,23 @@ const clearSignature = () => {
 const handleTipePesertaChange = () => {
     form.nip = '';
     form.id_dinas = '';
+    form.nama_dinas = '';
     form.nama_external = '';
+    form.jabatan = '';
+    form.clearErrors();
+    formError.value = '';
 };
 
 const searchPegawai = async () => {
     if (!form.nip || form.nip.length < 5) return;
-    
+
     isSearchingNip.value = true;
     try {
         const response = await axios.get(route('api.pegawai', form.nip));
         if (response.data && response.data.success) {
             let pegawai = response.data.data;
             if (Array.isArray(pegawai)) pegawai = pegawai[0];
-            
+
             if (pegawai && pegawai.data) pegawai = pegawai.data;
             if (pegawai && pegawai.data) pegawai = pegawai.data;
 
@@ -92,10 +95,10 @@ const searchPegawai = async () => {
                 const instansi = pegawai.instansi || pegawai.nama_instansi || pegawai.nama_dinas || pegawai.dinas || pegawai.unit_kerja || pegawai.nama_unit;
                 const jabatan = pegawai.jabatan;
 
-                if (email) form.email = email.toLowerCase(); 
+                if (email) form.email = email.toLowerCase();
                 if (jabatan) form.jabatan = toTitleCase(jabatan);
                 if (phone) form.telp = phone;
-                
+
                 if (gender) {
                     if (/^(laki|male|m|pria)/.test(gender)) {
                         form.jenis_kelamin = 'laki-laki';
@@ -108,23 +111,7 @@ const searchPegawai = async () => {
 
                 if (instansi) {
                     const rawInstansi = typeof instansi === 'object' ? (instansi.nama_dinas || instansi.nama || instansi.label || '') : instansi;
-                    form.nama_external = toTitleCase(rawInstansi);
-                }
-
-                if (form.nama_external && masterDinas.length) {
-                    const normalizedLabel = form.nama_external.toString().trim().toLowerCase();
-                    const matched = masterDinas.find((dinas) => {
-                        return [
-                            dinas.nama_dinas,
-                            dinas.nama,
-                            dinas.label,
-                        ].some(value => value && value.toString().trim().toLowerCase() === normalizedLabel);
-                    });
-                    if (matched) {
-                        form.id_dinas = matched.id;
-                    } else {
-                        form.id_dinas = '';
-                    }
+                    form.nama_dinas = toTitleCase(rawInstansi);
                 }
             }
         }
@@ -136,25 +123,61 @@ const searchPegawai = async () => {
 };
 
 const submitForm = () => {
-    const { isEmpty, data } = signaturePad.value.saveSignature();
-    
-    if (isEmpty) {
-        alert("Silakan bubuhkan tanda tangan terlebih dahulu!");
+    // Validasi client-side
+    if (!form.nama.trim()) {
+        formError.value = 'Nama Lengkap wajib diisi!';
         return;
     }
-    
-    if (form.tipe_peserta === 'internal' && !form.nama_external) {
-        alert("Silakan isi nama unit kerja atau instansi internal!");
+    if (!form.jenis_kelamin.trim()) {
+        formError.value = 'Jenis Kelamin wajib diisi!';
+        return;
+    }
+    if (!form.telp.trim()) {
+        formError.value = 'No. HP wajib diisi!';
+        return;
+    }
+    if (!form.email.trim()) {
+        formError.value = 'Email wajib diisi!';
         return;
     }
 
+    // Validasi internal vs eksternal
+    if (form.tipe_peserta === 'internal') {
+        if (!form.nama_dinas.trim()) {
+            formError.value = 'Nama Dinas/Unit Kerja wajib diisi untuk peserta Internal!';
+            return;
+        }
+        // Set nama_external = nama_dinas untuk internal
+        form.nama_external = form.nama_dinas;
+    } else {
+        if (!form.nama_external.trim()) {
+            formError.value = 'Asal Dinas/Instansi wajib diisi untuk peserta Eksternal!';
+            return;
+        }
+    }
+
+    // Validasi signature
+    const { isEmpty, data } = signaturePad.value.saveSignature();
+    if (isEmpty) {
+        formError.value = 'Silakan bubuhkan tanda tangan terlebih dahulu!';
+        return;
+    }
+
+    // Validasi captcha
+    if (!isCaptchaValid.value) {
+        formError.value = 'Jawaban verifikasi keamanan salah!';
+        return;
+    }
+
+    formError.value = '';
     form.signature = data;
 
     form.post(route('rapat.public.store', props.rapat.id), {
         preserveScroll: true,
         onError: (errors) => {
             console.error(errors);
-            alert("Terjadi kesalahan! Periksa form Anda.");
+            const firstError = Object.values(errors)[0];
+            formError.value = firstError || 'Terjadi kesalahan! Periksa form Anda.';
         }
     });
 };
@@ -165,66 +188,78 @@ const submitForm = () => {
 
     <div class="min-h-screen bg-gray-50 py-8 px-4 sm:px-6 lg:px-8 flex items-center justify-center">
         <div class="max-w-md w-full bg-white rounded-2xl shadow-xl overflow-hidden">
-            
+
             <div class="p-6 bg-indigo-600 text-white text-center">
                 <h2 class="text-xl font-bold leading-tight">{{ rapat.nama_kegiatan }}</h2>
                 <p class="text-indigo-100 text-sm mt-2">
                     {{ rapat.tanggal }} &bull; {{ rapat.pukul }} WIB
+                    <span v-if="rapat.ruangan"> &bull; {{ rapat.ruangan.nama_ruangan }}</span>
                 </p>
             </div>
 
             <div class="p-6 space-y-5">
-                
+
+                <!-- Error Message -->
+                <div v-if="formError" class="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-xl text-sm font-medium">
+                    {{ formError }}
+                </div>
+
                 <div>
                     <label class="block text-sm font-medium text-gray-700 mb-1">Tipe Peserta <span class="text-red-500">*</span></label>
                     <select v-model="form.tipe_peserta" @change="handleTipePesertaChange" class="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-indigo-600 bg-white">
-                        <option value="internal">Internal </option>
+                        <option value="internal">Internal (Pegawai/Karyawan)</option>
                         <option value="eksternal">Eksternal (Tamu Instansi Luar)</option>
                     </select>
                 </div>
 
+                <!-- NIP untuk Internal -->
                 <div v-if="form.tipe_peserta === 'internal'">
-                    <label class="block text-sm font-medium text-gray-700 mb-1">NIP Pegawai <span class="text-red-500">*</span></label>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">NIP Pegawai</label>
                     <div class="relative">
-                        <input v-model="form.nip" @blur="searchPegawai" type="text" class="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-indigo-600" placeholder="Ketik NIP lalu klik di luar kotak ini..." required />
+                        <input v-model="form.nip" @blur="searchPegawai" type="text" class="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-indigo-600" placeholder="Ketik NIP lalu klik di luar..." />
                         <div v-if="isSearchingNip" class="absolute right-4 top-3.5">
                             <svg class="animate-spin h-5 w-5 text-indigo-600" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z"></path></svg>
                         </div>
                     </div>
-                    <p class="text-xs text-gray-500 mt-1">Nama akan terisi otomatis dari SIMPEG setelah Anda mengetikkan NIP.</p>
+                    <p class="text-xs text-gray-500 mt-1">Opsional: Ketik NIP untuk auto-fill data dari SIMPEG.</p>
                 </div>
 
                 <div>
                     <label class="block text-sm font-medium text-gray-700 mb-1">Nama Lengkap <span class="text-red-500">*</span></label>
-                    <input v-model="form.nama" type="text" class="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-indigo-600" required />
-                </div>
-                
-                <div>
-                    <label class="block text-sm font-medium text-gray-700 mb-1">Jabatan <span class="text-red-500">*</span></label>
-                    <input v-model="form.jabatan" type="text" class="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-indigo-600" required />
-                </div>
-                
-                <div>
-                    <label class="block text-sm font-medium text-gray-700 mb-1">Jenis Kelamin <span class="text-red-500">*</span></label>
-                    <input v-model="form.jenis_kelamin" type="text" placeholder="Laki-laki / Perempuan" class="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-indigo-600" required />
+                    <input v-model="form.nama" type="text" class="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-indigo-600" placeholder="Masukkan nama lengkap" />
                 </div>
 
                 <div>
-                    <label class="block text-sm font-medium text-gray-700 mb-1">
-                        {{ form.tipe_peserta === 'internal' ? 'Nama Unit Kerja / Instansi Internal' : 'Asal Dinas / Instansi' }}
-                        <span class="text-red-500">*</span>
-                    </label>
-                    <input v-model="form.nama_external" type="text" :placeholder="form.tipe_peserta === 'internal' ? 'Contoh: Sekretariat Daerah' : 'Contoh: Dinas Kesehatan Kota'" class="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-indigo-600 bg-white" required />
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Jabatan</label>
+                    <input v-model="form.jabatan" type="text" class="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-indigo-600" placeholder="Contoh: Staff Keuangan" />
+                </div>
+
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Jenis Kelamin <span class="text-red-500">*</span></label>
+                    <input v-model="form.jenis_kelamin" type="text" class="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-indigo-600" placeholder="Laki-laki atau Perempuan" />
+                </div>
+
+                <!-- Dinas untuk Internal -->
+                <div v-if="form.tipe_peserta === 'internal'">
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Nama Dinas / Unit Kerja <span class="text-red-500">*</span></label>
+                    <input v-model="form.nama_dinas" type="text" class="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-indigo-600" placeholder="Contoh: Sekretariat Daerah Kota Bogor" />
+                    <p class="text-xs text-gray-500 mt-1">Masukkan nama Dinas atau Unit Kerja Anda.</p>
+                </div>
+
+                <!-- Asal Instansi untuk Eksternal -->
+                <div v-else>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Asal Dinas / Instansi <span class="text-red-500">*</span></label>
+                    <input v-model="form.nama_external" type="text" class="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-indigo-600" placeholder="Contoh: Dinas Kesehatan Kota Bogor" />
                 </div>
 
                 <div>
                     <label class="block text-sm font-medium text-gray-700 mb-1">No. HP / WhatsApp <span class="text-red-500">*</span></label>
-                    <input v-model="form.telp" type="tel" class="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-indigo-600" required />
+                    <input v-model="form.telp" type="tel" class="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-indigo-600" placeholder="08xxxxxxxxxx" />
                 </div>
 
                 <div>
                     <label class="block text-sm font-medium text-gray-700 mb-1">Email <span class="text-red-500">*</span></label>
-                    <input v-model="form.email" type="email" class="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-indigo-600" required />
+                    <input v-model="form.email" type="email" class="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-indigo-600" placeholder="email@contoh.com" />
                 </div>
 
                 <div class="mt-4">
@@ -245,14 +280,14 @@ const submitForm = () => {
                         <span class="px-4 py-3 bg-gray-100 border border-gray-300 rounded-xl font-bold text-gray-700 whitespace-nowrap">
                             {{ captchaNum1 }} + {{ captchaNum2 }} =
                         </span>
-                        <input v-model="captchaAnswer" type="number" class="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-indigo-600" placeholder="Ketik hasil..." required />
+                        <input v-model="captchaAnswer" type="number" class="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-indigo-600" placeholder="Ketik hasil..." />
                     </div>
                 </div>
-                
-                <button 
-                    type="button" 
-                    @click="submitForm" 
-                    :disabled="form.processing || !isCaptchaValid" 
+
+                <button
+                    type="button"
+                    @click="submitForm"
+                    :disabled="form.processing"
                     class="w-full mt-6 px-6 py-4 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl font-bold shadow-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed text-lg"
                 >
                     {{ form.processing ? 'Menyimpan...' : 'Kirim Daftar Hadir' }}
@@ -266,18 +301,5 @@ const submitForm = () => {
 <style scoped>
 .touch-none {
     touch-action: none;
-}
-
-:deep(.v-select-mobile .vs__dropdown-toggle) {
-    padding: 8px 0;
-    border-color: #d1d5db;
-    border-radius: 0.75rem; /* xl */
-}
-:deep(.v-select-mobile.vs--open .vs__dropdown-toggle) {
-    border-color: #4f46e5;
-    box-shadow: 0 0 0 2px rgba(79, 70, 229, 0.2);
-}
-:deep(.v-select-mobile .vs__search) {
-    font-size: 16px; /* Mencegah zoom di iOS Safari */
 }
 </style>

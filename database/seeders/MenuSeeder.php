@@ -84,5 +84,14 @@ class MenuSeeder extends Seeder
             'parent_id' => $masterData->id,
             'order' => 7,
         ]);
+
+        Menu::create([
+            'name' => 'Ruangan',
+            'route' => 'ruangans.index',
+            'icon' => 'office-building',
+            'permission_name' => 'view_ruangans',
+            'parent_id' => $masterData->id,
+            'order' => 8,
+        ]);
     }
 }

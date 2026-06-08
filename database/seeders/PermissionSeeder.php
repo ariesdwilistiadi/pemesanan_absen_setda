@@ -58,13 +58,29 @@ class PermissionSeeder extends Seeder
             ['name' => 'create_pinjaman', 'guard_name' => 'web'],
             ['name' => 'view_pinjaman_bayar', 'guard_name' => 'web'],
             ['name' => 'create_pinjaman_bayar', 'guard_name' => 'web'],
+
+            // Ruangan Management Permissions
+            ['name' => 'view_ruangans', 'guard_name' => 'web'],
+            ['name' => 'create_ruangans', 'guard_name' => 'web'],
+            ['name' => 'edit_ruangans', 'guard_name' => 'web'],
+            ['name' => 'delete_ruangans', 'guard_name' => 'web'],
         ];
 
         foreach ($permissions as $permission) {
-            Permission::firstOrCreate([
-                'name' => $permission['name'],
-                'guard_name' => $permission['guard_name'],
-            ]);
+            try {
+                Permission::updateOrCreate(
+                    [
+                        'name' => $permission['name'],
+                        'guard_name' => $permission['guard_name'],
+                    ],
+                    $permission
+                );
+            } catch (\Exception $e) {
+                // Skip if duplicate, continue with others
+                if (!str_contains($e->getMessage(), 'Duplicate')) {
+                    throw $e;
+                }
+            }
         }
     }
 }

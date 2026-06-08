@@ -9,6 +9,7 @@ use App\Models\DaftarHadir;
 use App\Models\TransaksiHeader;
 use App\Models\TransaksiDetail;
 use App\Support\RecordOwnership;
+use App\Events\PesananBaruCreated;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
 use Illuminate\Support\Str;
@@ -82,9 +83,10 @@ class KasirController extends Controller
             'metode_pembayaran' => 'required|in:cash,qris',
             'jumlah_bayar' => 'required|numeric|min:0',
             'cart' => 'required|array|min:1',
-            'cart.*.id' => 'required|exists:produks,id',
+            'cart.*.id' => 'required',
             'cart.*.jumlah' => 'required|integer|min:1',
-            'cart.*.harga_jual' => 'required|numeric'
+            'cart.*.harga_jual' => 'required|numeric|min:0', // min:0 untuk produk gratis
+            'cart.*.sumber' => 'nullable|string'
         ]);
 
         $totalItem = 0;
@@ -99,6 +101,9 @@ class KasirController extends Controller
         if ($validated['metode_pembayaran'] === 'cash' && $validated['jumlah_bayar'] < $totalHarga) {
             return back()->withErrors(['jumlah_bayar' => 'Jumlah bayar kurang dari total harga.']);
         }
+
+        // Jika total = 0, tidak perlu print struk (produk gratis semua)
+        $printId = null;
 
         $kembalian = $validated['metode_pembayaran'] === 'cash' ? ($validated['jumlah_bayar'] - $totalHarga) : 0;
         if ($kembalian < 0) $kembalian = 0;
@@ -125,25 +130,42 @@ class KasirController extends Controller
         ]);
 
         foreach ($validated['cart'] as $item) {
+            // Untuk produk external, produk_id bisa null
+            $produkId = ($item['sumber'] ?? 'lokal') === 'external' ? null : $item['id'];
+
             TransaksiDetail::create([
                 'transaksi_header_id' => $header->id,
-                'produk_id' => $item['id'],
+                'produk_id' => $produkId,
+                'nama_produk_external' => ($item['sumber'] ?? 'lokal') === 'external' ? $item['nama_barang'] : null,
                 'jumlah' => $item['jumlah'],
                 'harga_satuan' => $item['harga_jual'],
                 'subtotal' => $item['jumlah'] * $item['harga_jual']
             ]);
 
-            // Update stok produk
-            $produk = Produk::find($item['id']);
-            if ($produk) {
-                $produk->stok -= $item['jumlah'];
-                $produk->save();
+            // Update stok produk hanya untuk produk lokal
+            if (($item['sumber'] ?? 'lokal') === 'lokal') {
+                $produk = Produk::find($item['id']);
+                if ($produk) {
+                    $produk->stok -= $item['jumlah'];
+                    $produk->save();
+                }
             }
+        }
+
+        // Load relasi details untuk broadcast
+        $header->load('details.produk');
+
+        // Broadcast event untuk real-time
+        broadcast(new PesananBaruCreated($header))->toOthers();
+
+        // Set print_id hanya jika ada item dengan harga > 0
+        if ($totalHarga > 0) {
+            $printId = $header->id;
         }
 
         return redirect()->back()
             ->with('success', 'Transaksi berhasil disimpan dengan No: ' . $noTransaksi)
-            ->with('print_id', $header->id);
+            ->with('print_id', $printId);
     }
 
     public function print($id)
@@ -183,7 +205,7 @@ class KasirController extends Controller
     {
         // Get all transactions sorted by latest first
         $transaksisQuery = TransaksiHeader::with('details.produk')->latest();
-        
+
         if ($request->user()) {
             RecordOwnership::scopeOwned($transaksisQuery, $request->user());
         }
@@ -191,6 +213,65 @@ class KasirController extends Controller
 
         return Inertia::render('Kasir/Pesanan', [
             'transaksis' => $transaksis
+        ]);
+    }
+
+    /**
+     * SSE endpoint untuk real-time pesanan
+     */
+    public function ssePesanan()
+    {
+        $lastId = request()->query('last_id', 0);
+
+        $response = new \Illuminate\Http\Response(function () use ($lastId) {
+            $transaksisQuery = TransaksiHeader::with('details.produk')
+                ->where('id', '>', $lastId)
+                ->whereIn('status', ['pending', 'diproses']);
+
+            if (auth()->check()) {
+                RecordOwnership::scopeOwned($transaksisQuery, auth()->user());
+            }
+
+            $transaksis = $transaksisQuery->latest()->get();
+
+            echo "data: " . json_encode([
+                'type' => 'initial',
+                'transaksis' => $transaksis,
+                'count' => $transaksis->count()
+            ]) . "\n\n";
+            ob_flush();
+            flush();
+        });
+
+        $response->headers->set('Content-Type', 'text/event-stream');
+        $response->headers->set('Cache-Control', 'no-cache');
+        $response->headers->set('Connection', 'keep-alive');
+        $response->headers->set('X-Accel-Buffering', 'no');
+
+        return $response;
+    }
+
+    /**
+     * Polling endpoint untuk cek pesanan baru (fallback)
+     */
+    public function cekPesananBaru(Request $request)
+    {
+        $lastId = $request->query('last_id', 0);
+
+        $transaksisQuery = TransaksiHeader::with('details.produk')
+            ->where('id', '>', $lastId)
+            ->whereIn('status', ['pending', 'diproses']);
+
+        if ($request->user()) {
+            RecordOwnership::scopeOwned($transaksisQuery, $request->user());
+        }
+
+        $transaksis = $transaksisQuery->latest()->get();
+
+        return response()->json([
+            'success' => true,
+            'transaksis' => $transaksis,
+            'count' => $transaksis->count()
         ]);
     }
 

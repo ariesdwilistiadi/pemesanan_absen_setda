@@ -11,12 +11,9 @@ return new class extends Migration
      */
     public function up(): void
     {
-       Schema::create('instansi_profiles', function (Blueprint $table) {
-        $table->id();
-        $table->string('logo')->nullable();
-        // Add any other necessary columns here
-        $table->timestamps();
-    });
+        Schema::table('absensi_pesertas', function (Blueprint $table) {
+            $table->string('jenis_kelamin', 20)->nullable()->after('nama');
+        });
     }
 
     /**
@@ -24,8 +21,8 @@ return new class extends Migration
      */
     public function down(): void
     {
-        Schema::table('instansi_profiles', function (Blueprint $table) {
-            $table->dropColumn('qris_image');
+        Schema::table('absensi_pesertas', function (Blueprint $table) {
+            $table->dropColumn('jenis_kelamin');
         });
     }
 };

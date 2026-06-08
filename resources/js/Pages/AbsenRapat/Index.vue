@@ -17,6 +17,10 @@ const props = defineProps({
         type: Boolean,
         default: false,
     },
+    ruangans: {
+        type: Array,
+        default: () => [],
+    },
 });
 
 const filterTanggal = ref(props.filters.tanggal || '');
@@ -31,6 +35,7 @@ const form = useForm({
     nama_kegiatan: '',
     tanggal: '',
     pukul: '',
+    ruangan_id: '',
 });
 
 const showQrModal = ref(false);
@@ -219,6 +224,7 @@ const openEditModal = (rapat) => {
     form.nama_kegiatan = rapat.nama_kegiatan;
     form.tanggal = rapat.tanggal;
     form.pukul = rapat.pukul;
+    form.ruangan_id = rapat.ruangan_id || '';
     showModal.value = true;
 };
 
@@ -306,6 +312,7 @@ const goToDetail = (id) => {
                                         <th class="text-left py-3 px-2 font-semibold text-gray-700">Nama Kegiatan</th>
                                         <th class="text-left py-3 px-2 font-semibold text-gray-700">Tanggal</th>
                                         <th class="text-left py-3 px-2 font-semibold text-gray-700">Pukul</th>
+                                        <th class="text-left py-3 px-2 font-semibold text-gray-700">Ruangan</th>
                                         <th class="text-center py-3 px-2 font-semibold text-gray-700">Aksi</th>
                                     </tr>
                                 </thead>
@@ -315,6 +322,12 @@ const goToDetail = (id) => {
                                         <td class="py-3 px-2 font-semibold text-gray-900">{{ rapat.nama_kegiatan }}</td>
                                         <td class="py-3 px-2 text-gray-600">{{ rapat.tanggal }}</td>
                                         <td class="py-3 px-2 text-gray-600 font-mono">{{ rapat.pukul }} WIB</td>
+                                        <td class="py-3 px-2">
+                                            <span v-if="rapat.ruangan" class="px-2 py-1 bg-purple-100 text-purple-700 text-xs rounded-full font-medium">
+                                                {{ rapat.ruangan.nama_ruangan }}
+                                            </span>
+                                            <span v-else class="text-gray-400 text-sm">-</span>
+                                        </td>
                                         <td class="py-3 px-2 flex justify-center gap-2">
                                             <button @click="openEditModal(rapat)" class="px-3 py-1.5 bg-amber-100 text-amber-700 hover:bg-amber-200 rounded-md text-xs font-bold transition-colors">
                                                 Edit
@@ -362,6 +375,16 @@ const goToDetail = (id) => {
                                 <input v-model="form.pukul" type="time" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-600" required />
                                 <span v-if="form.errors.pukul" class="text-xs text-red-500">{{ form.errors.pukul }}</span>
                             </div>
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">Ruangan</label>
+                            <select v-model="form.ruangan_id" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-600 bg-white">
+                                <option value="">-- Pilih Ruangan (Opsional) --</option>
+                                <option v-for="ruangan in ruangans" :key="ruangan.id" :value="ruangan.id">
+                                    {{ ruangan.nama_ruangan }}
+                                </option>
+                            </select>
+                            <span v-if="form.errors.ruangan_id" class="text-xs text-red-500">{{ form.errors.ruangan_id }}</span>
                         </div>
                     </div>
 
