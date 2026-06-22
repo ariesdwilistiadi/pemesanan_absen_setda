@@ -23,7 +23,7 @@ class KasirController extends Controller
 	
    public function index(Request $request)
     {
-        $produks = Produk::all();
+        $produks = Produk::where('is_active', true)->get();
         $ruangans = Ruangan::where('is_active', true)->orderBy('nama_ruangan')->get();
         $transaksisQuery = TransaksiHeader::with('details.produk')->latest();
 

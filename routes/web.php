@@ -168,6 +168,7 @@ Route::middleware(['auth', 'verified', 'trusted.origin', 'session.timeout'])->gr
         Route::get('/produks', 'index')->middleware('permission:view_produks')->name('produks.index');
         Route::post('/produks', 'store')->middleware(['permission:create_produks', 'throttle:10,1'])->name('produks.store');
         Route::post('/produks/{produk}', 'update')->middleware(['permission:edit_produks', 'throttle:10,1'])->name('produks.update');
+        Route::post('/produks/{produk}/toggle-active', 'toggleActive')->middleware(['permission:edit_produks'])->name('produks.toggleActive');
         Route::delete('/produks/{produk}', 'destroy')->middleware(['permission:delete_produks', 'throttle:10,1'])->name('produks.destroy');
     });
 

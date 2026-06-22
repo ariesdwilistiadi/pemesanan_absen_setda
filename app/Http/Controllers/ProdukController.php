@@ -39,6 +39,7 @@ class ProdukController extends Controller
             'satuan' => 'required|string|max:255',
             'deskripsi' => 'nullable|string',
             'gambar' => 'nullable|image|mimes:jpeg,png,jpg,gif|max:2048',
+            'is_active' => 'nullable|boolean',
         ]);
 
         if ($request->hasFile('gambar')) {
@@ -47,6 +48,7 @@ class ProdukController extends Controller
         }
 
         $validated['owner_user_id'] = $request->user()->id;
+        $validated['is_active'] = $validated['is_active'] ?? true;
         Produk::create($validated);
 
         return redirect()->back()->with('success', 'Produk berhasil ditambahkan.');
@@ -68,6 +70,7 @@ class ProdukController extends Controller
             'satuan' => 'required|string|max:255',
             'deskripsi' => 'nullable|string',
             'gambar' => 'nullable|image|mimes:jpeg,png,jpg,gif|max:2048',
+            'is_active' => 'nullable|boolean',
         ]);
 
         if ($request->hasFile('gambar')) {
@@ -100,5 +103,18 @@ class ProdukController extends Controller
         $produk->delete();
 
         return redirect()->back()->with('success', 'Produk berhasil dihapus.');
+    }
+
+    /**
+     * Toggle the active status of a product.
+     */
+    public function toggleActive(Request $request, Produk $produk)
+    {
+        RecordOwnership::abortUnlessOwned($produk, $request->user());
+        $produk->is_active = !$produk->is_active;
+        $produk->save();
+
+        $status = $produk->is_active ? 'diaktifkan' : 'dinonaktifkan';
+        return redirect()->back()->with('success', "Produk berhasil {$status}.");
     }
 }

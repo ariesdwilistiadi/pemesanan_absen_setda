@@ -12,6 +12,10 @@ const props = defineProps({
         type: Array,
         default: () => [],
     },
+    filterStatus: {
+        type: String,
+        default: null,
+    },
 });
 
 const showModal = ref(false);
@@ -43,7 +47,7 @@ const openAddModal = () => {
 
 const openEditModal = (anggota) => {
     editingAnggota.value = anggota;
-    formData.value = { 
+    formData.value = {
         nama: anggota.nama,
         no_identitas: anggota.no_identitas,
         tempat_lahir: anggota.tempat_lahir,
@@ -70,11 +74,11 @@ const closeModal = () => {
 const submitForm = () => {
     // Basic validation
     const requiredFields = [
-        'nama', 'no_identitas', 'tempat_lahir', 'tgl_lahir', 
-        'alamat', 'jenis_kelamin', 'no_telp', 'agama_id', 
+        'nama', 'no_identitas', 'tempat_lahir', 'tgl_lahir',
+        'alamat', 'jenis_kelamin', 'no_telp', 'agama_id',
         'pekerjaan', 'tgl_masuk'
     ];
-    
+
     for (const field of requiredFields) {
         if (!formData.value[field] || String(formData.value[field]).trim() === '') {
             alert(`Field ${field.replace('_', ' ')} harus diisi!`);
@@ -137,6 +141,20 @@ const deleteAnggota = (id) => {
 const formatRupiah = (number) => {
     return new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR' }).format(number);
 };
+
+// Filter handlers
+const filterStatus = (status) => {
+    if (status === props.filterStatus) {
+        // If clicking the same filter, remove it (show all)
+        router.get(route('anggotas.index'), {}, {
+            preserveScroll: true,
+        });
+    } else {
+        router.get(route('anggotas.index'), { status: status }, {
+            preserveScroll: true,
+        });
+    }
+};
 </script>
 
 <template>
@@ -160,8 +178,57 @@ const formatRupiah = (number) => {
             <div class="max-w-7xl mx-auto px-4">
                 <div class="bg-white rounded-3xl shadow-sm border border-gray-100 overflow-hidden">
                     <div class="p-6 border-b border-gray-50 bg-gray-50/30">
-                        <h3 class="text-lg font-bold text-gray-900">Daftar Anggota</h3>
-                        <p class="text-sm text-gray-500">Kelola semua data anggota di sistem.</p>
+                        <div class="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+                            <div>
+                                <h3 class="text-lg font-bold text-gray-900">Daftar Anggota</h3>
+                                <p class="text-sm text-gray-500">Kelola semua data anggota di sistem.</p>
+                            </div>
+
+                            <!-- Filter Buttons -->
+                            <div class="flex items-center gap-2">
+                                <span class="text-sm text-gray-500 mr-2">Filter:</span>
+                                <button
+                                    @click="filterStatus('active')"
+                                    class="px-4 py-2 text-sm font-medium rounded-lg transition-colors"
+                                    :class="filterStatus === 'active' ? 'bg-green-500 text-white' : 'bg-white text-gray-700 border border-gray-300 hover:bg-gray-50'"
+                                >
+                                    <span class="flex items-center gap-2">
+                                        <span class="w-2 h-2 rounded-full bg-green-500"></span>
+                                        Aktif
+                                    </span>
+                                </button>
+                                <button
+                                    @click="filterStatus('inactive')"
+                                    class="px-4 py-2 text-sm font-medium rounded-lg transition-colors"
+                                    :class="filterStatus === 'inactive' ? 'bg-red-500 text-white' : 'bg-white text-gray-700 border border-gray-300 hover:bg-gray-50'"
+                                >
+                                    <span class="flex items-center gap-2">
+                                        <span class="w-2 h-2 rounded-full bg-gray-400"></span>
+                                        Non-Aktif
+                                    </span>
+                                </button>
+                                <button
+                                    @click="filterStatus(null)"
+                                    v-if="filterStatus"
+                                    class="px-4 py-2 text-sm font-medium text-gray-600 bg-gray-100 hover:bg-gray-200 rounded-lg transition-colors"
+                                >
+                                    Tampilkan Semua
+                                </button>
+                            </div>
+                        </div>
+
+                        <!-- Summary Stats -->
+                        <div class="mt-4 flex flex-wrap gap-4">
+                            <div class="bg-green-50 text-green-700 px-3 py-1.5 rounded-full text-sm font-medium">
+                                <span class="text-green-500">●</span> Aktif: {{ anggotas.filter(a => a.status === 1).length }}
+                            </div>
+                            <div class="bg-gray-100 text-gray-600 px-3 py-1.5 rounded-full text-sm font-medium">
+                                <span class="text-gray-400">●</span> Non-Aktif: {{ anggotas.filter(a => a.status === 0).length }}
+                            </div>
+                            <div class="bg-indigo-50 text-indigo-700 px-3 py-1.5 rounded-full text-sm font-medium">
+                                Total: {{ anggotas.length }}
+                            </div>
+                        </div>
                     </div>
 
                     <div class="p-6">
@@ -180,12 +247,12 @@ const formatRupiah = (number) => {
                                     </tr>
                                 </thead>
                                 <tbody>
-                                    <tr v-for="anggota in anggotas" :key="anggota.id" class="border-b border-gray-100 hover:bg-gray-50">
+                                    <tr v-for="anggota in anggotas" :key="anggota.id" class="border-b border-gray-100 hover:bg-gray-50" :class="{'bg-red-50/30': anggota.status === 0}">
                                         <td class="py-3 px-2">
                                             <span class="font-mono text-gray-600">{{ anggota.no_anggota || 'N/A' }}</span>
                                         </td>
                                         <td class="py-3 px-2">
-                                            <div class="font-semibold text-gray-900">{{ anggota.nama }}</div>
+                                            <div class="font-semibold text-gray-900" :class="{'line-through text-gray-400': anggota.status === 0}">{{ anggota.nama }}</div>
                                             <div class="text-xs text-gray-500 capitalize">{{ anggota.jenis_kelamin }}</div>
                                         </td>
                                         <td class="py-3 px-2 text-gray-600">{{ anggota.no_identitas }}</td>

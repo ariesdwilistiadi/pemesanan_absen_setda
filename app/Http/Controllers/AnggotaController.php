@@ -15,7 +15,17 @@ class AnggotaController extends Controller
      */
     public function index(Request $request)
     {
+        $filterStatus = $request->query('status'); // 'active', 'inactive', or null (all)
+
         $anggotasQuery = Anggota::with('agama')->latest();
+
+        // Filter by status if provided
+        if ($filterStatus === 'active') {
+            $anggotasQuery->where('status', 1);
+        } elseif ($filterStatus === 'inactive') {
+            $anggotasQuery->where('status', 0);
+        }
+
         RecordOwnership::scopeOwned($anggotasQuery, $request->user());
         $anggotas = $anggotasQuery->get();
         $agamas = Agama::all();
@@ -23,6 +33,7 @@ class AnggotaController extends Controller
         return Inertia::render('Anggota/Index', [
             'anggotas' => $anggotas,
             'agamas' => $agamas,
+            'filterStatus' => $filterStatus,
         ]);
     }
 

@@ -23,6 +23,7 @@ const getInitialFormData = () => ({
     satuan: 'Pcs',
     deskripsi: '',
     gambar: null,
+    is_active: true,
 });
 
 const formData = ref(getInitialFormData());
@@ -45,6 +46,7 @@ const openEditModal = (produk) => {
         satuan: produk.satuan,
         deskripsi: produk.deskripsi || '',
         gambar: null, // Don't bind the old image file
+        is_active: produk.is_active !== undefined ? produk.is_active : true,
     };
     showModal.value = true;
 };
@@ -117,6 +119,16 @@ const deleteProduk = (id) => {
     }
 };
 
+const toggleActive = (produk) => {
+    const newStatus = produk.is_active ? 'nonaktifkan' : 'aktifkan';
+    if (confirm(`Apakah Anda yakin ingin ${newStatus} produk "${produk.nama_barang}"?`)) {
+        router.post(route('produks.toggleActive', produk.id), {
+            preserveScroll: true,
+            onError: (errors) => alert('Gagal mengubah status produk: ' + JSON.stringify(errors))
+        });
+    }
+};
+
 const formatRupiah = (number) => {
     return new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR' }).format(number);
 };
@@ -159,11 +171,12 @@ const formatRupiah = (number) => {
                                         <th class="text-left py-3 px-2 font-semibold text-gray-700">Harga Beli</th>
                                         <th class="text-left py-3 px-2 font-semibold text-gray-700">Harga Jual</th>
                                         <th class="text-left py-3 px-2 font-semibold text-gray-700">Stok</th>
+                                        <th class="text-left py-3 px-2 font-semibold text-gray-700">Status</th>
                                         <th class="text-left py-3 px-2 font-semibold text-gray-700">Aksi</th>
                                     </tr>
                                 </thead>
                                 <tbody>
-                                    <tr v-for="produk in produks" :key="produk.id" class="border-b border-gray-100 hover:bg-gray-50">
+                                    <tr v-for="produk in produks" :key="produk.id" class="border-b border-gray-100 hover:bg-gray-50" :class="{'opacity-50 bg-gray-50': !produk.is_active}">
                                         <td class="py-3 px-2">
                                             <div v-if="produk.gambar" class="w-12 h-12 rounded overflow-hidden">
                                                 <img :src="'/storage/' + produk.gambar" alt="Gambar" class="object-cover w-full h-full" />
@@ -186,6 +199,22 @@ const formatRupiah = (number) => {
                                             <span :class="{'text-red-600 font-bold': produk.stok <= 0, 'text-green-600 font-bold': produk.stok > 0}">
                                                 {{ produk.stok }}
                                             </span>
+                                        </td>
+                                        <td class="py-3 px-2">
+                                            <button
+                                                @click="toggleActive(produk)"
+                                                class="relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2"
+                                                :class="produk.is_active ? 'bg-green-500' : 'bg-gray-300'"
+                                                :title="produk.is_active ? 'Klik untuk nonaktifkan' : 'Klik untuk aktifkan'"
+                                            >
+                                                <span
+                                                    class="inline-block h-4 w-4 transform rounded-full bg-white transition-transform"
+                                                    :class="produk.is_active ? 'translate-x-6' : 'translate-x-1'"
+                                                />
+                                            </button>
+                                            <div class="text-xs mt-1" :class="produk.is_active ? 'text-green-600' : 'text-gray-400'">
+                                                {{ produk.is_active ? 'Aktif' : 'Nonaktif' }}
+                                            </div>
                                         </td>
                                         <td class="py-3 px-2">
                                             <div class="flex space-x-2">
@@ -276,6 +305,25 @@ const formatRupiah = (number) => {
                                 <div>
                                     <label class="block text-sm font-medium text-gray-700 mb-1">Deskripsi</label>
                                     <textarea v-model="formData.deskripsi" rows="3" class="w-full rounded-lg border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"></textarea>
+                                </div>
+                                <div v-if="editingProduk">
+                                    <label class="block text-sm font-medium text-gray-700 mb-1">Status Produk</label>
+                                    <div class="flex items-center space-x-3">
+                                        <button
+                                            type="button"
+                                            @click="formData.is_active = !formData.is_active"
+                                            class="relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2"
+                                            :class="formData.is_active ? 'bg-green-500' : 'bg-gray-300'"
+                                        >
+                                            <span
+                                                class="inline-block h-4 w-4 transform rounded-full bg-white transition-transform"
+                                                :class="formData.is_active ? 'translate-x-6' : 'translate-x-1'"
+                                            />
+                                        </button>
+                                        <span class="text-sm" :class="formData.is_active ? 'text-green-600' : 'text-gray-500'">
+                                            {{ formData.is_active ? 'Aktif - Produk ditampilkan di kasir' : 'Nonaktif - Produk disembunyikan dari kasir' }}
+                                        </span>
+                                    </div>
                                 </div>
                                 <div>
                                     <label class="block text-sm font-medium text-gray-700 mb-1">Gambar Produk</label>
