@@ -25,9 +25,7 @@ use Inertia\Inertia;
 |--------------------------------------------------------------------------
 */
 
-Route::get('/', function () {
-    return redirect()->away('http://localhost:8000/login');
-});
+Route::redirect('/', '/login');
 
 Route::controller(KasirController::class)->group(function () {
    // Route::get('/kasir', 'index')->middleware('permission:view_kasir')->name('kasir.index');
