@@ -13,10 +13,12 @@ use App\Events\PesananBaruCreated;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
 use Illuminate\Support\Str;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\Rule;
 
 use App\Models\InstansiProfile;
 use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Facades\Log;
 
 class KasirController extends Controller
 {
@@ -87,13 +89,19 @@ class KasirController extends Controller
             'cart.*.id' => 'required',
             'cart.*.jumlah' => 'required|integer|min:1',
             'cart.*.harga_jual' => 'required|numeric|min:0', // min:0 untuk produk gratis
-            'cart.*.sumber' => 'nullable|string'
+            'cart.*.nama_barang' => 'nullable|string',
+            'cart.*.sumber' => 'nullable|in:lokal,external'
         ]);
 
-        // Pisahkan item berdasarkan sumber: lokal vs external
-        $cartItems = collect($validated['cart']);
-        $localItems = $cartItems->where('sumber', 'lokal');
-        $externalItems = $cartItems->where('sumber', 'external');
+        // Item tanpa sumber berasal dari versi kasir lama, jadi dianggap produk lokal.
+        $cartItems = collect($validated['cart'])->map(function ($item) {
+            $item['sumber'] = $item['sumber'] ?? 'lokal';
+
+            return $item;
+        });
+
+        $localItems = $cartItems->where('sumber', 'lokal')->values();
+        $externalItems = $cartItems->where('sumber', 'external')->values();
 
         // Hitung total per sumber
         $totalLocal = $localItems->sum(fn($item) => $item['jumlah'] * $item['harga_jual']);
@@ -108,81 +116,56 @@ class KasirController extends Controller
 
         $kembalian = $validated['metode_pembayaran'] === 'cash' ? ($validated['jumlah_bayar'] - $totalHarga) : 0;
         if ($kembalian < 0) $kembalian = 0;
-			$owner_user_id = $request->user()?->id ?: '2';
         $noTransaksi = 'TRX-' . date('Ymd') . '-' . strtoupper(Str::random(6));
         $printId = null;
         $externalSuccess = true;
         $externalMessage = '';
 
-<<<<<<< Updated upstream
-        // =====================================================
-        // SIMPAN ITEM LOKAL KE DATABASE LOKAL
-        // =====================================================
         if ($localItems->isNotEmpty()) {
-            $header = TransaksiHeader::create([
-                'no_transaksi' => $noTransaksi,
-                'id_absen_rapats' => $validated['id_absen_rapats'],
-                'nip' => $validated['nip'] ?? null,
-                'nama' => $validated['nama'],
-                'id_ruangan' => $validated['id_ruangan'] ?? null,
-                'nomor_meja' => $validated['nomor_meja'] ?? null,
-                'tanggal_transaksi' => now(),
-                'total_item' => $totalItem,
-                'total_harga' => $totalHarga,
-                'keterangan' => $validated['keterangan'] ?? null,
-                'status' => 'pending',
-                'metode_pembayaran' => $validated['metode_pembayaran'],
-                'jumlah_bayar' => $validated['jumlah_bayar'],
-                'kembalian' => $kembalian
-            ] + [
-                'owner_user_id' => $request->user()?->id,
-=======
-        $header = TransaksiHeader::create([
-            'no_transaksi' => $noTransaksi,
-            'id_absen_rapats' => $validated['id_absen_rapats'],
-            'nip' => $validated['nip'] ?? null,
-            'nama' => $validated['nama'],
-            'id_ruangan' => $validated['id_ruangan'] ?? null,
-            'nomor_meja' => $validated['nomor_meja'] ?? null,
-            'tanggal_transaksi' => now(),
-            'total_item' => $totalItem,
-            'total_harga' => $totalHarga,
-            'keterangan' => $validated['keterangan'] ?? null,
-            'status' => 'pending',
-            'metode_pembayaran' => $validated['metode_pembayaran'],
-            'jumlah_bayar' => $validated['jumlah_bayar'],
-            'kembalian' => $kembalian
-        ] + [
-            'owner_user_id' => $owner_user_id,
-        ]);
-
-        foreach ($validated['cart'] as $item) {
-            TransaksiDetail::create([
-                'transaksi_header_id' => $header->id,
-                'produk_id' => $item['id'],
-                'jumlah' => $item['jumlah'],
-                'harga_satuan' => $item['harga_jual'],
-                'subtotal' => $item['jumlah'] * $item['harga_jual']
->>>>>>> Stashed changes
-            ]);
-
-            foreach ($localItems as $item) {
-                TransaksiDetail::create([
-                    'transaksi_header_id' => $header->id,
-                    'produk_id' => $item['id'],
-                    'nama_produk_external' => null,
-                    'jumlah' => $item['jumlah'],
-                    'harga_satuan' => $item['harga_jual'],
-                    'subtotal' => $item['jumlah'] * $item['harga_jual']
+            $header = DB::transaction(function () use ($localItems, $request, $validated, $noTransaksi, $totalLocal, $kembalian) {
+                $header = TransaksiHeader::create([
+                    'no_transaksi' => $noTransaksi,
+                    'id_absen_rapats' => $validated['id_absen_rapats'],
+                    'nip' => $validated['nip'] ?? null,
+                    'nama' => $validated['nama'],
+                    'id_ruangan' => $validated['id_ruangan'] ?? null,
+                    'nomor_meja' => $validated['nomor_meja'] ?? null,
+                    'tanggal_transaksi' => now(),
+                    'total_item' => $localItems->sum('jumlah'),
+                    'total_harga' => $totalLocal,
+                    'keterangan' => $validated['keterangan'] ?? null,
+                    'status' => 'pending',
+                    'metode_pembayaran' => $validated['metode_pembayaran'],
+                    'jumlah_bayar' => $validated['jumlah_bayar'],
+                    'kembalian' => $kembalian,
+                    'owner_user_id' => $request->user()?->id,
                 ]);
 
-                // Update stok produk lokal
-                $produk = Produk::find($item['id']);
-                if ($produk) {
-                    $produk->stok -= $item['jumlah'];
-                    $produk->save();
+                foreach ($localItems as $item) {
+                    $produk = Produk::whereKey($item['id'])->lockForUpdate()->first();
+
+                    if (! $produk || ! $produk->is_active) {
+                        abort(422, 'Produk lokal tidak ditemukan atau sudah nonaktif.');
+                    }
+
+                    if ($produk->stok < $item['jumlah']) {
+                        abort(422, 'Stok produk ' . $produk->nama_barang . ' tidak mencukupi.');
+                    }
+
+                    TransaksiDetail::create([
+                        'transaksi_header_id' => $header->id,
+                        'produk_id' => $produk->id,
+                        'nama_produk_external' => null,
+                        'jumlah' => $item['jumlah'],
+                        'harga_satuan' => $produk->harga_jual,
+                        'subtotal' => $item['jumlah'] * $produk->harga_jual,
+                    ]);
+
+                    $produk->decrement('stok', $item['jumlah']);
                 }
-            }
+
+                return $header;
+            });
 
             // Load relasi details untuk broadcast
             $header->load('details.produk');
@@ -190,7 +173,7 @@ class KasirController extends Controller
             // Broadcast event untuk real-time
             broadcast(new PesananBaruCreated($header))->toOthers();
 
-            if ($totalHarga > 0) {
+            if ($totalLocal > 0) {
                 $printId = $header->id;
             }
         }
@@ -229,11 +212,6 @@ class KasirController extends Controller
                 $externalMessage = 'Gagal menyimpan transaksi ke server external: ' . $e->getMessage();
                 Log::error('External transaction exception: ' . $e->getMessage());
             }
-        }
-
-        // Set print_id hanya jika ada item lokal dengan harga > 0
-        if ($totalLocal > 0) {
-            $printId = $header->id ?? null;
         }
 
         // Prepare flash message

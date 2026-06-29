@@ -170,17 +170,9 @@ class AbsenRapatController extends Controller
             'tipe_peserta'  => 'required|in:internal,eksternal',
             'nip'           => 'nullable|string',
             'nama'          => 'required|string|max:191',
-<<<<<<< Updated upstream
             'jenis_kelamin' => 'required|string|max:50',
             'id_dinas'      => 'nullable',
             'jabatan'       => 'nullable|string|max:191',
-=======
-            'jenis_kelamin' => 'required|in:laki-laki,perempuan',
-            
-            // id_dinas harus nullable dan berupa integer (sesuai ID dari dropdown)
-            'id_dinas'      => 'nullable|string', 
-            
->>>>>>> Stashed changes
             'nama_external' => 'nullable|string|max:191',
             'telp'          => 'required|string|max:191',
             'email'         => 'required|email|max:191',
