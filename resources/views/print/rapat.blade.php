@@ -188,7 +188,7 @@
                         <span style="font-size:10pt;">{{ $hadir->nip ? 'NIP. '.$hadir->nip : '' }}</span>
                     </td>
                     <td>
-                        {{ $hadir->tipe_peserta === 'internal' ? ($hadir->dinas ? $hadir->dinas->nama_dinas : '-') : $hadir->nama_external }}
+                        {{ $hadir->nama_external }} 
                     </td>
                     <td>
                         <span style="font-size:10pt;">{{ $hadir->telp }}<br>{{ $hadir->email }}</span>

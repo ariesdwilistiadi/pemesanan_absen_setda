@@ -317,7 +317,7 @@ const submitForm = () => {
                                             <div v-if="hadir.nip" class="text-xs text-gray-400 mt-0.5">NIP: {{ hadir.nip }}</div>
                                         </td>
                                         <td class="py-3 px-4 text-gray-600">
-                                            {{ hadir.tipe_peserta === 'internal' ? (hadir.dinas ? hadir.dinas.nama_dinas : '-') : hadir.nama_external }}
+                                            {{ hadir.nama_external }} 
                                         </td>
                                         <td class="py-3 px-4 text-center">
                                             <img :src="hadir.signature" class="h-12 mx-auto object-contain bg-white border border-gray-200 p-1 rounded-md" alt="TTD" />
