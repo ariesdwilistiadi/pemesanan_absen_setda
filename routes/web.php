@@ -5,6 +5,7 @@ use App\Http\Controllers\AnggotaController;
 use App\Http\Controllers\DanaDkkController;
 use App\Http\Controllers\KasirController;
 use App\Http\Controllers\MenuController;
+use App\Http\Controllers\NotulenRapatController;
 use App\Http\Controllers\PermissionController;
 use App\Http\Controllers\ProdukEksternalController;
 use App\Http\Controllers\PinjamanBayarController;
@@ -101,6 +102,22 @@ Route::middleware(['auth', 'verified', 'trusted.origin', 'session.timeout'])->gr
     Route::get('/rapat/{id}/cetak', [AbsenRapatController::class, 'print'])
         ->middleware('permission:view_rapat')
         ->name('rapat.print');
+
+    /*
+    |--------------------------------------------------------------------------
+    | Manajemen Notulen Rapat
+    |--------------------------------------------------------------------------
+    */
+    Route::controller(NotulenRapatController::class)->group(function () {
+        Route::get('/notulen', 'index')->middleware('permission:view_notulen')->name('notulen.index');
+        Route::get('/notulen/create', 'create')->middleware('permission:create_notulen')->name('notulen.create');
+        Route::post('/notulen', 'store')->middleware(['permission:create_notulen', 'throttle:10,1'])->name('notulen.store');
+        Route::get('/notulen/{id}', 'show')->middleware('permission:view_notulen')->name('notulen.show');
+        Route::get('/notulen/{id}/edit', 'edit')->middleware('permission:edit_notulen')->name('notulen.edit');
+        Route::put('/notulen/{id}', 'update')->middleware(['permission:edit_notulen', 'throttle:10,1'])->name('notulen.update');
+        Route::delete('/notulen/{id}', 'destroy')->middleware('permission:delete_notulen')->name('notulen.destroy');
+        Route::get('/notulen/{id}/cetak', 'print')->middleware('permission:view_notulen')->name('notulen.print');
+    });
 
     /*
     |--------------------------------------------------------------------------

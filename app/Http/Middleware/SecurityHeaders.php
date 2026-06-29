@@ -21,12 +21,16 @@ class SecurityHeaders
 
         $cspImages = app()->environment('local') ? ' https://laravel.com' : '';
 
+        // TinyMCE CDN (sudah tidak dipakai)
+        // Quill Editor CDN
+        $quillCsp = " https://cdn.jsdelivr.net";
+
         $csp = "default-src 'self'; " .
-            "script-src 'self' 'unsafe-inline'{$viteDevUrl}; " .
-            "style-src 'self' 'unsafe-inline' https://fonts.bunny.net{$viteDevUrl}; " .
-            "font-src 'self' https://fonts.bunny.net; " .
+            "script-src 'self' 'unsafe-inline'{$viteDevUrl}{$quillCsp}; " .
+            "style-src 'self' 'unsafe-inline' https://fonts.bunny.net{$viteDevUrl}{$quillCsp}; " .
+            "font-src 'self' https://fonts.bunny.net{$quillCsp}; " .
             "img-src 'self' data:{$cspImages}; " .
-            "connect-src 'self'{$viteDevUrl}{$viteDevWs}; " .
+            "connect-src 'self'{$viteDevUrl}{$viteDevWs}{$quillCsp}; " .
             "frame-src 'none'; " .
             "media-src 'none'; " .
             "manifest-src 'self'; " .

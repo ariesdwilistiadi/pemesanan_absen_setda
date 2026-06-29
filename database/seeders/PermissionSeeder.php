@@ -64,6 +64,12 @@ class PermissionSeeder extends Seeder
             ['name' => 'create_ruangans', 'guard_name' => 'web'],
             ['name' => 'edit_ruangans', 'guard_name' => 'web'],
             ['name' => 'delete_ruangans', 'guard_name' => 'web'],
+
+            // Notulen Rapat Permissions
+            ['name' => 'view_notulen', 'guard_name' => 'web'],
+            ['name' => 'create_notulen', 'guard_name' => 'web'],
+            ['name' => 'edit_notulen', 'guard_name' => 'web'],
+            ['name' => 'delete_notulen', 'guard_name' => 'web'],
         ];
 
         foreach ($permissions as $permission) {
