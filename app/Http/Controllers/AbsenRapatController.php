@@ -75,13 +75,6 @@ class AbsenRapatController extends Controller
     {
         $rapat = AbsenRapat::with('ruangan')->findOrFail($id);
         $kehadiran = DaftarHadir::where('absen_rapat_id', $id)->latest()->get();
-<<<<<<< Updated upstream
-
-        // Ambil semua data dinas dari tabel
-=======
-        
- 
->>>>>>> Stashed changes
         $masterDinas = Dinas::orderBy('nama_dinas', 'asc')->get();
 
         return Inertia::render('AbsenRapat/Detail', [
@@ -89,7 +82,7 @@ class AbsenRapatController extends Controller
             'kehadiran' => $kehadiran,
             'masterDinas' => $masterDinas // Kirim variabel ini ke Vue
         ]);
-    }
+    } 
     
     public function print(Request $request, $id)
     {
