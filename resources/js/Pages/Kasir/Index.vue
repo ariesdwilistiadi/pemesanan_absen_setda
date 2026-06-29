@@ -269,7 +269,7 @@ const processCheckout = () => {
 
     if (confirm(`Proses transaksi untuk ${peserta.value.nama} dengan total ${formatRupiah(cartTotal.value)}?`)) {
         router.post(route('kasir.store'), {
-            id_absen_rapats: peserta.value.id,
+            id_absen_rapats: peserta.value.absen_rapat_id || null,
             nip: peserta.value.nip,
             nama: peserta.value.nama,
             id_ruangan: idRuangan.value || null,
