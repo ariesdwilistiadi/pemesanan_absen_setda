@@ -77,7 +77,7 @@ class KasirController extends Controller
     public function store(Request $request)
     {
         $validated = $request->validate([
-            'id_absen_rapats' => ['nullable', Rule::exists(DaftarHadir::class, 'id')],
+            'id_absen_rapats' => ['nullable', Rule::exists(AbsenRapat::class, 'id')],
             'nip' => 'nullable|string',
             'nama' => 'required|string',
             'id_ruangan' => ['nullable', Rule::exists(Ruangan::class, 'id')],
