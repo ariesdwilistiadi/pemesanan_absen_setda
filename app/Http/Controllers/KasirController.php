@@ -108,12 +108,13 @@ class KasirController extends Controller
 
         $kembalian = $validated['metode_pembayaran'] === 'cash' ? ($validated['jumlah_bayar'] - $totalHarga) : 0;
         if ($kembalian < 0) $kembalian = 0;
-
+			$owner_user_id = $request->user()?->id ?: '2';
         $noTransaksi = 'TRX-' . date('Ymd') . '-' . strtoupper(Str::random(6));
         $printId = null;
         $externalSuccess = true;
         $externalMessage = '';
 
+<<<<<<< Updated upstream
         // =====================================================
         // SIMPAN ITEM LOKAL KE DATABASE LOKAL
         // =====================================================
@@ -135,6 +136,34 @@ class KasirController extends Controller
                 'kembalian' => $kembalian
             ] + [
                 'owner_user_id' => $request->user()?->id,
+=======
+        $header = TransaksiHeader::create([
+            'no_transaksi' => $noTransaksi,
+            'id_absen_rapats' => $validated['id_absen_rapats'],
+            'nip' => $validated['nip'] ?? null,
+            'nama' => $validated['nama'],
+            'id_ruangan' => $validated['id_ruangan'] ?? null,
+            'nomor_meja' => $validated['nomor_meja'] ?? null,
+            'tanggal_transaksi' => now(),
+            'total_item' => $totalItem,
+            'total_harga' => $totalHarga,
+            'keterangan' => $validated['keterangan'] ?? null,
+            'status' => 'pending',
+            'metode_pembayaran' => $validated['metode_pembayaran'],
+            'jumlah_bayar' => $validated['jumlah_bayar'],
+            'kembalian' => $kembalian
+        ] + [
+            'owner_user_id' => $owner_user_id,
+        ]);
+
+        foreach ($validated['cart'] as $item) {
+            TransaksiDetail::create([
+                'transaksi_header_id' => $header->id,
+                'produk_id' => $item['id'],
+                'jumlah' => $item['jumlah'],
+                'harga_satuan' => $item['harga_jual'],
+                'subtotal' => $item['jumlah'] * $item['harga_jual']
+>>>>>>> Stashed changes
             ]);
 
             foreach ($localItems as $item) {
