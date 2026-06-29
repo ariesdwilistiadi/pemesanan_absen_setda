@@ -269,17 +269,17 @@
             <tr>
                 <td class="label-col">Ketua</td>
                 <td>:</td>
-                <td>{{ $notulen->ketua->name ?? '......................' }}</td>
+                <td>{{ $notulen->ketua->name ?? $notulen->ketua_manual ?? '......................' }}</td>
             </tr>
             <tr>
                 <td class="label-col">Sekretaris</td>
                 <td>:</td>
-                <td>{{ $notulen->sekretaris->name ?? '......................' }}</td>
+                <td>{{ $notulen->sekretaris->name ?? $notulen->sekretaris_manual ?? '......................' }}</td>
             </tr>
             <tr>
                 <td class="label-col">Pencatat</td>
                 <td>:</td>
-                <td>{{ $notulen->pencacat->name ?? '......................' }}</td>
+                <td>{{ $notulen->pencacat->name ?? $notulen->pencacat_manual ?? '......................' }}</td>
             </tr>
         </table>
 
@@ -336,9 +336,9 @@
                         <p>{{ $instansi->kota ?? 'Kota Bogor' }}, {{ \Carbon\Carbon::parse($notulen->rapat->tanggal ?? now())->translatedFormat('d F Y') }}</p>
                         <p class="signature-title"><strong>PIMPINAN SIDANG/RAPAT</strong></p>
 
-                        <p class="signature-name">{{ $notulen->ketua->name ?? '...........................' }}</p>
-                        @if($notulen->ketua && $notulen->ketua->nip)
-                            <p>NIP. {{ $notulen->ketua->nip }}</p>
+                        <p class="signature-name">{{ $notulen->ketua->name ?? $notulen->ketua_manual ?? '...........................' }}</p>
+                        @if(($notulen->ketua && $notulen->ketua->nip) || $notulen->ketua_manual)
+                            <p>NIP. {{ $notulen->ketua->nip ?? '...........................' }}</p>
                         @else
                             <p>NIP. ...........................</p>
                         @endif
