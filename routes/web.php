@@ -25,11 +25,10 @@ use Inertia\Inertia;
 |--------------------------------------------------------------------------
 */
 
-Route::get('/', function () {
-    return redirect()->away('https://labs-sapasekda.kotabogor.go.id/login'); 
-});
+Route::redirect('/', '/login');
 
-Route::controller(KasirController::class)->group(function () {
+
+Route::controller(KasirController::class)->group(function () { 
    // Route::get('/kasir', 'index')->middleware('permission:view_kasir')->name('kasir.index');
    Route::get('/kasir', 'index')->name('kasir.index');
    Route::get('/kasir/cari-peserta', 'cariPeserta')->name('kasir.cari-peserta');
